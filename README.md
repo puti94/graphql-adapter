@@ -13,13 +13,14 @@ $ yarn add graphql-adapter // or npm i graphql-adapter --save
 const http = require("http");
 const {ApolloServer, PubSub} = require("apollo-server-express");
 const express = require("express");
-const {Sequelize,DataTypes} = require("sequelize");
-const sequelize = new Sequelize(/** **/);
+const {generateSchema} = require("../dist");
+const {Sequelize, DataTypes} = require("sequelize");
+const sequelize = new Sequelize({dialect: "mysql"});
 const models = {
-  user: sequelize.define('user',{name:DataTypes.STRING})
-}
+  user: sequelize.define("user", {name: DataTypes.STRING})
+};
 const server = new ApolloServer({
-  schema: generateSchema(models,{pubSub:new PubSub()}),
+  schema: generateSchema(models, {pubSub: new PubSub()}),
 });
 const app = express();
 server.applyMiddleware({app});
@@ -30,6 +31,7 @@ httpServer.listen(PORT, () => {
   console.log(`🚀 Server ready at http://localhost:${PORT}${server.graphqlPath}`);
   console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}${server.subscriptionsPath}`);
 });
+
 ```
 ## 高级用法
 ```js
