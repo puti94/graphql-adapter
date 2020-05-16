@@ -206,12 +206,20 @@ export abstract class BaseAdapter<M, TSource,
 
     private _getSubscriptionConfig<TResponse>(eventName: string, config: BaseSubscriptionConfig<TResponse, TSource, TArgs, TContext> = {}) {
         const {filter = () => true, ...otherConfig} = config;
-        const {pubSub} = this.config;
+        const {pubSub, filterSubscription} = this.config;
         return {
             type: this.modelType,
+            description: `订阅${this.name}${eventName}事件`,
             args: this.inputArgs,
             ...otherConfig,
-            subscribe: withFilter(() => pubSub?.asyncIterator(eventName), (...args) => filter(...args))
+            subscribe: withFilter(() => pubSub?.asyncIterator(eventName), async (...args) => {
+                //有设置通用拦截器先执行通用拦截
+                if (_.isFunction(filterSubscription)) {
+                    const result = await filterSubscription(...args);
+                    if (result === false) return false;
+                }
+                return filter(...args);
+            })
         };
     }
 
@@ -223,6 +231,7 @@ export abstract class BaseAdapter<M, TSource,
     get getOne() {
         return this._getFieldConfig({
             type: this.modelType,
+            description: `获取单个${this.name}`,
             args: {
                 ...this.inputArgs,
                 ...(this.config.getOne?.args || {}),
@@ -238,6 +247,7 @@ export abstract class BaseAdapter<M, TSource,
     get getList() {
         return this._getFieldConfig({
             type: new GraphQLList(this.modelType),
+            description: `获取${this.name}列表`,
             args: {
                 ...this.inputListArgs,
                 ...(this.config.getList?.args || {})
@@ -253,6 +263,7 @@ export abstract class BaseAdapter<M, TSource,
     get getListPage() {
         return this._getFieldConfig({
             type: this.pageType,
+            description: `获取${this.name}列表并返回总量`,
             args: {
                 ...this.inputListArgs,
                 ...(this.config.getList?.args || {})
@@ -268,6 +279,7 @@ export abstract class BaseAdapter<M, TSource,
     get getAggregation() {
         return this._getFieldConfig({
             type: GraphQLInt,
+            description: `${this.name}聚合数据,支持 sum | min | max`,
             args: {
                 ...this.aggregationArgs,
                 ...(this.config.getAggregation?.args || {})
@@ -284,6 +296,7 @@ export abstract class BaseAdapter<M, TSource,
         return this._getFieldConfig({
             type: this.modelType,
             resolve: this.createResolve.bind(this),
+            description: `新建${this.name}`,
             args: {
                 data: {
                     description: "新建数据",
@@ -300,6 +313,7 @@ export abstract class BaseAdapter<M, TSource,
     get update() {
         return this._getFieldConfig({
             type: this.modelType,
+            description: `更新${this.name}`,
             resolve: this.updateResolve.bind(this),
             args: {
                 data: {
@@ -318,6 +332,7 @@ export abstract class BaseAdapter<M, TSource,
     get remove() {
         return this._getFieldConfig({
             type: GraphQLBoolean,
+            description: `删除${this.name}`,
             resolve: this.removeResolve.bind(this),
             args: {
                 ...this.primaryKey
@@ -424,7 +439,8 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLFieldConfigMap<TSource, TContext>}
      */
     get subscriptionFields(): GraphQLFieldConfigMap<TSource, TContext> {
-        const {includeSubscription = true, excludeSubscription} = this.config;
+        const {includeSubscription = true, excludeSubscription, pubSub} = this.config;
+        if (_.isUndefined(pubSub)) return {};
         return [Subscription.CREATED, Subscription.REMOVED, Subscription.UPDATED].reduce<GraphQLFieldConfigMap<TSource, TContext>>
         ((memo, key) => {
             if (!filterAction(includeSubscription, excludeSubscription, key)) return memo;

@@ -11,6 +11,9 @@ import {
 import {PubSub} from "graphql-subscriptions";
 import Maybe from "graphql/tsutils/Maybe";
 
+/**
+ * 查询的类型
+ */
 export enum Query {
     GET = "get",
     LIST = "list",
@@ -18,12 +21,18 @@ export enum Query {
     AGGREGATION = "aggregation",
 }
 
+/**
+ * mutation的类型
+ */
 export enum Mutation {
     CREATE = "create",
     UPDATE = "update",
     REMOVE = "remove",
 }
 
+/**
+ * 订阅事件的类型
+ */
 export enum Subscription {
     CREATED = "created",
     UPDATED = "updated",
@@ -31,8 +40,23 @@ export enum Subscription {
 }
 
 export interface BaseHook<M, TSource, TArgs, TContext> {
+    /**
+     * 调用方法前的钩子，可以重置args
+     * @param source
+     * @param args
+     * @param context
+     * @param info
+     */
     before?(source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo): MaybePromise<TArgs>;
 
+    /**
+     * 调用方法后的钩子，可以重置response
+     * @param response
+     * @param source
+     * @param args
+     * @param context
+     * @param info
+     */
     after?(response: M, source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo): MaybePromise<M>;
 }
 
@@ -86,6 +110,9 @@ export interface BaseSubscription<M, TSource, TArgs, TContext> {
 }
 
 export interface BaseTypeConfig<TSource, TContext> {
+    /**
+     *模型的字段，可以在此添加其它字段
+     */
     modelFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;
 }
 
@@ -107,17 +134,44 @@ export interface BaseInputTypeConfig {
 export type FilterActions<T> = T[] | ((key: T) => boolean);
 
 export interface CommonConfig {
+    /**
+     * 包含的query,可以为布尔类型，可以传一个数组，或者传一个函数
+     */
     includeQuery?: boolean | FilterActions<Query>;
+    /**
+     * 包含的mutation,可以为布尔类型，可以传一个数组，或者传一个函数
+     */
     includeMutation?: boolean | FilterActions<Mutation>;
+    /**
+     * 包含的subscription,可以为布尔类型，可以传一个数组，或者传一个函数
+     */
     includeSubscription?: boolean | FilterActions<Subscription>;
+    /**
+     * 不包含的query,可以传一个数组，或者传一个函数
+     */
     excludeQuery?: FilterActions<Query>;
+    /**
+     * 不包含的mutation,可以传一个数组，或者传一个函数
+     */
     excludeMutation?: FilterActions<Mutation>;
+    /**
+     * 不包含的subscription,可以传一个数组，或者传一个函数
+     */
     excludeSubscription?: FilterActions<Subscription>;
 }
 
 export interface BaseFieldsConfig<TSource, TContext> {
+    /**
+     * 关联的字段
+     */
     associationsFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;
+    /**
+     * 新建参数的关联字段
+     */
     associationsCreateFields?: Thunk<GraphQLFieldConfigArgumentMap>;
+    /**
+     * 更新参数的关联字段
+     */
     associationsUpdateFields?: Thunk<GraphQLFieldConfigArgumentMap>;
 }
 
@@ -131,10 +185,26 @@ export type BaseConfig<M, TSource, TArgs, TContext> =
     BaseFieldsConfig<TSource, TContext> &
     BaseHook<M, TSource, TArgs, TContext> &
     {
+        /**
+         * 设置基本名称，默认是以model的name属性
+         */
         name?: Thunk<string>;
+        /**
+         * 设置主键字段
+         */
         primaryKey?: GraphQLFieldConfigArgumentMap;
+        /**
+         * 描述
+         */
         description?: Thunk<string>;
+        /**
+         * graphql-subscriptions 的实例
+         */
         pubSub?: PubSub;
+        /**
+         * 增删改三个事件的通用过滤器，优先拦截
+         */
+        filterSubscription?: FilterFn<M, TArgs, TContext>;
     }
 
 export interface BaseAdapterInterface<M, TSource, TContext extends Record<string, any>, TArgs> extends BaseQuery<M, TSource, TArgs, TContext>,
@@ -143,7 +213,16 @@ export interface BaseAdapterInterface<M, TSource, TContext extends Record<string
     BaseType<TSource, TContext>,
     BaseInputType,
     BaseFieldsConfig<TSource, TContext> {
+    /**
+     * model 的所有查询字段
+     */
     queryFields: GraphQLFieldConfigMap<TSource, TContext>;
+    /**
+     * model 的所有mutation
+     */
     mutationFields: GraphQLFieldConfigMap<TSource, TContext>;
+    /**
+     * model 的所有subscription
+     */
     subscriptionFields: GraphQLFieldConfigMap<TSource, TContext>;
 }

@@ -1,22 +1,39 @@
 const http = require("http");
-const {ApolloServer} = require("apollo-server-express");
+const {ApolloServer, PubSub} = require("apollo-server-express");
 const express = require("express");
 const {generateSchema} = require("../dist");
 const {sequelize, models} = require("./db");
-const {PubSub} = require("graphql-subscriptions");
 sequelize.sync();
 const server = new ApolloServer({
   schema: generateSchema(models, {
-    // pubSub: new PubSub(),
-    commonModelOptions: {
-      handlerFindOptions: ((action, options) => {
-        console.log("action", action, options);
-        return options;
-      }),
-      handlerAggregateOptions: ((action, options) => {
-        console.log("action", action, options);
-        return options;
-      })
+    pubSub: new PubSub(),
+    handlerFindOptions: ((action, options) => {
+      console.log("action", action, options);
+      return options;
+    }),
+    handlerAggregateOptions: ((action, options) => {
+      console.log("action", action, options);
+      return options;
+    }),
+    filterSubscription: (response) => {
+      console.log("Subscription", response);
+      return true;
+    },
+    created: {
+      filter: (response) => {
+        console.log("created.filter", response);
+        return true;
+      }
+    },
+    configMap: {
+      User: {
+        created: {
+          filter: (response) => {
+            console.log("User.created.filter", response);
+            return true;
+          }
+        },
+      }
     }
   }),
   tracing: true,

@@ -24,8 +24,27 @@ export type SequelizeArgs = {
 export type SequelizeAdapterConfig<M extends Model, TSource, TContext> =
     BaseConfig<M, TSource, SequelizeArgs, TContext>
     & {
+    /**
+     * 设置默认限制数量，默认为20
+     */
     defaultLimit?: number;
+    /**
+     * 处理FindOptions的钩子
+     * @param action
+     * @param options
+     * @param args
+     * @param context
+     * @param info
+     */
     handlerFindOptions?: (action: string, options: FindOptions, args: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) => FindOptions;
+    /**
+     * 处理AggregateOptions的钩子
+     * @param action
+     * @param options
+     * @param args
+     * @param context
+     * @param info
+     */
     handlerAggregateOptions?: (action: string, options: AggregateOptions<any>, args: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) => AggregateOptions<any>;
 }
 
@@ -131,7 +150,8 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             const isList = ["BelongsToMany", "HasMany"].includes(association.associationType);
             fields[association.as] = {
                 type: isList ? new GraphQLList(type) : type,
-                args: isList ? modelSchema.inputListArgs : modelSchema.inputArgs,
+                //管理表可以传递自己的参数,移除scope选项
+                args: _.omit(isList ? modelSchema.inputListArgs : modelSchema.inputArgs, ["scope"]),
                 resolve: resolver(association, {
                     before: _getHandlerFindOptionsFn(this.config, association.as),
                     handler: (findOptions, source) => {
