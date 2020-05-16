@@ -89,21 +89,24 @@ httpServer.listen(PORT, () => {
 ## 实现接口
 ### query(查询)
 - get(查找单个)
-- getlist(查找列表)
-- getlistpage(查找)
-- getaggregation
+- getList(查找列表)
+- getListPage(查找列表带总量)
+- getAggregation(聚合接口 min | max | sum)    
+
 ![image text](./img/get.png)
 ### mutation(异变)
 - create(新建)
 - remove(删除)
-- update(更新)
+- update(更新)    
+
 ![image text](./img/create.png)
 ### subscription(监听)
 - created(新建事件)
 - removed(删除事件)
-- updated(更新事件)
+- updated(更新事件)     
+
 ![image text](./img/subscription.png)
 
 ## 参考项目
-[graphql-sequelize](https://github.com/mickhansen/graphql-sequelize)
-[graphql-sequelize-generator](https://github.com/teamstarter/graphql-sequelize-generator)
+- [graphql-sequelize](https://github.com/mickhansen/graphql-sequelize)    
+- [graphql-sequelize-generator](https://github.com/teamstarter/graphql-sequelize-generator)
