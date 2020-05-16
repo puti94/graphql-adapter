@@ -104,3 +104,6 @@ httpServer.listen(PORT, () => {
 - updated(更新事件)
 ![image text](./img/subscription.png)
 
+## 参考项目
+[graphql-sequelize](https://github.com/mickhansen/graphql-sequelize)
+[graphql-sequelize-generator](https://github.com/teamstarter/graphql-sequelize-generator)
