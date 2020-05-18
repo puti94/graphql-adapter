@@ -127,6 +127,8 @@ export abstract class BaseAdapter<M, TSource,
     get modelType(): GraphQLObjectType {
         return getCacheGraphqlType({
             name: this.upperName,
+            description: thunkGet(this.config.description),
+            ...(this.config.modelTypeConfig || {}),
             fields: () => ({
                 ...this.modelFields,
                 ...this.associationsFields,
@@ -163,7 +165,7 @@ export abstract class BaseAdapter<M, TSource,
     get updateType(): GraphQLInputObjectType {
         return getCacheGraphqlType({
             name: `${this.upperName}UpdateInput`,
-            ...this.config.updateTypeConfig,
+            ...(this.config.updateTypeConfig || {}),
             fields: () => ({
                 ...map2NullableType(this.updateFields),
                 ...this.associationsUpdateFields,

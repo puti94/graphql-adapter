@@ -1,4 +1,3 @@
-
 /**
  * User: puti.
  * Time: 2020-05-11 16:15.
@@ -20,7 +19,8 @@ module.exports = function (sequelize, DataTypes) {
       defaultValue: false
     }
   }, {
-    tableName: "Project"
+    tableName: "Project",
+    comment: "项目"
   });
   project.associate = function (models) {
     project.belongsTo(models.User, {foreignKey: "ownerId"});

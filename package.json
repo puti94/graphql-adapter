@@ -1,6 +1,6 @@
 {
   "name": "graphql-adapter",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "一个基于 sequelize ORM框架自动生成 graphql schema 的库",
   "repository": {
     "type": "git",

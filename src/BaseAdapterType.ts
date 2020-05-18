@@ -5,7 +5,7 @@ import {
     GraphQLFieldResolver,
     GraphQLFieldConfigMap,
     GraphQLFieldConfigArgumentMap,
-    Thunk, GraphQLInputObjectTypeConfig, GraphQLOutputType, FieldDefinitionNode
+    Thunk, GraphQLInputObjectTypeConfig, GraphQLOutputType, FieldDefinitionNode, GraphQLObjectTypeConfig
 } from "graphql";
 
 import {PubSub} from "graphql-subscriptions";
@@ -114,6 +114,7 @@ export interface BaseTypeConfig<TSource, TContext> {
      *模型的字段，可以在此添加其它字段
      */
     modelFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;
+    modelTypeConfig?: GraphQLObjectTypeConfig<TSource, TContext>;
 }
 
 export interface BaseType<TSource, TContext> {
