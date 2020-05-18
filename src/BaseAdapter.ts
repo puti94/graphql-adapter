@@ -185,7 +185,7 @@ export abstract class BaseAdapter<M, TSource,
             name: `${this.upperName}CreateInput`,
             ...this.config.createTypeConfig,
             fields: () => ({
-                ...map2NullableType(this.createFields),
+                ...this.createFields,
                 ...this.associationsCreateFields,
                 ...thunkGet(this.config.createTypeConfig?.fields || {}),
                 ...thunkGet(this.config.associationsCreateFields || {}),
