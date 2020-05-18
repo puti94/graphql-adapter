@@ -49,6 +49,11 @@ export function toGraphQL(sequelizeType: SequelizeType): GraphQLType | GraphQLIn
         if (result) return result;
     }
 
+    if (_.isString(sequelizeType)) {
+        // TODO 以字符串表示的类型暂时统一转为string类型
+        return GraphQLString;
+    }
+
     const key = (sequelizeType as AbstractDataType).key;
 
     if (key === "BOOLEAN") return GraphQLBoolean;

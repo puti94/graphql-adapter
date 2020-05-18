@@ -2,6 +2,7 @@
  * User: puti.
  * Time: 2020-05-11 16:15.
  */
+const {DataTypes} = require("sequelize");
 module.exports = function (sequelize, DataTypes) {
   const account = sequelize.define("Account", {
     uuid: {

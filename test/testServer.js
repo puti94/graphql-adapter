@@ -3,6 +3,9 @@ const {ApolloServer, PubSub} = require("apollo-server-express");
 const express = require("express");
 const {generateSchema} = require("../dist");
 const {sequelize, models} = require("./db");
+const {GraphQLBoolean, GraphQLString, GraphQLNonNull} = require("graphql");
+const app = express();
+const httpServer = http.createServer(app);
 sequelize.sync();
 const server = new ApolloServer({
   schema: generateSchema(models, {
@@ -25,6 +28,26 @@ const server = new ApolloServer({
         return true;
       }
     },
+    customMutation: {
+      openServer: {
+        type: GraphQLBoolean,
+        args: {
+          path: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: "路径"
+          },
+        },
+        resolve: (source, args) => {
+          const server = new ApolloServer({
+            schema: generateSchema(models, {pubSub: new PubSub()}),
+            subscriptions: args.path
+          });
+          server.applyMiddleware({app, path: args.path});
+          server.installSubscriptionHandlers(httpServer);
+          return true;
+        }
+      }
+    },
     configMap: {
       User: {
         created: {
@@ -38,9 +61,8 @@ const server = new ApolloServer({
   }),
   tracing: true,
 });
-const app = express();
+
 server.applyMiddleware({app, path: "/graphql"});
-const httpServer = http.createServer(app);
 server.installSubscriptionHandlers(httpServer);
 const PORT = 8082;
 httpServer.listen(PORT, () => {
