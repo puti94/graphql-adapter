@@ -64,7 +64,7 @@ export function toGraphQL(sequelizeType: SequelizeType): GraphQLType | GraphQLIn
         return DateType;
     }
 
-    if (["CHAR", "STRING", "TEXT", "UUID", "UUIDV1", "UUIDV2", "UUIDV3", "UUIDV4", "DATEONLY", "TIME", "BIGINT", "DECIMAL"].includes(key)) {
+    if (["CHAR", "STRING", "TEXT", "UUID", "UUIDV1", "UUIDV2", "UUIDV3", "UUIDV4", "DATEONLY", "TIME", "BIGINT", "DECIMAL", "BLOB"].includes(key)) {
         return GraphQLString;
     }
 
