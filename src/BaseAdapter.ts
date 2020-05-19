@@ -94,11 +94,13 @@ export abstract class BaseAdapter<M, TSource,
     abstract aggregationArgs: GraphQLFieldConfigArgumentMap;
     primaryKey: GraphQLFieldConfigArgumentMap;
     primaryKeyName?: string;
+    description?: string;
 
     protected constructor(config: TConfig) {
         this.config = config;
         this.primaryKey = this.config.primaryKey || {};
         this.primaryKeyName = Object.keys(this.primaryKey)[0];
+        this.description = thunkGet(this.config.description) || this.name;
     }
 
     private _addHooks<TResponse>({before, after}: BaseHook<TResponse, TSource, TArgs, TContext>): Resolver<TSource, TContext, TArgs> {
@@ -127,7 +129,7 @@ export abstract class BaseAdapter<M, TSource,
     get modelType(): GraphQLObjectType {
         return getCacheGraphqlType({
             name: this.upperName,
-            description: thunkGet(this.config.description),
+            description: this.description,
             ...(this.config.modelTypeConfig || {}),
             fields: () => ({
                 ...this.modelFields,
@@ -211,7 +213,7 @@ export abstract class BaseAdapter<M, TSource,
         const {pubSub, filterSubscription} = this.config;
         return {
             type: this.modelType,
-            description: `订阅${this.name}${eventName}事件`,
+            description: `订阅${this.description}${eventName}事件`,
             args: this.inputArgs,
             ...otherConfig,
             subscribe: withFilter(() => pubSub?.asyncIterator(eventName), async (...args) => {
@@ -233,7 +235,7 @@ export abstract class BaseAdapter<M, TSource,
     get getOne() {
         return this._getFieldConfig({
             type: this.modelType,
-            description: `获取单个${this.name}`,
+            description: `获取单个${this.description}`,
             args: {
                 ...this.inputArgs,
                 ...(this.config.getOne?.args || {}),
@@ -249,7 +251,7 @@ export abstract class BaseAdapter<M, TSource,
     get getList() {
         return this._getFieldConfig({
             type: new GraphQLList(this.modelType),
-            description: `获取${this.name}列表`,
+            description: `获取${this.description}列表`,
             args: {
                 ...this.inputListArgs,
                 ...(this.config.getList?.args || {})
@@ -265,7 +267,7 @@ export abstract class BaseAdapter<M, TSource,
     get getListPage() {
         return this._getFieldConfig({
             type: this.pageType,
-            description: `获取${this.name}列表并返回总量`,
+            description: `获取${this.description}列表并返回总量`,
             args: {
                 ...this.inputListArgs,
                 ...(this.config.getList?.args || {})
@@ -281,7 +283,7 @@ export abstract class BaseAdapter<M, TSource,
     get getAggregation() {
         return this._getFieldConfig({
             type: GraphQLInt,
-            description: `${this.name}聚合数据,支持 sum | min | max`,
+            description: `${this.description}聚合数据,支持 sum | min | max`,
             args: {
                 ...this.aggregationArgs,
                 ...(this.config.getAggregation?.args || {})
@@ -298,7 +300,7 @@ export abstract class BaseAdapter<M, TSource,
         return this._getFieldConfig({
             type: this.modelType,
             resolve: this.createResolve.bind(this),
-            description: `新建${this.name}`,
+            description: `新建${this.description}`,
             args: {
                 data: {
                     description: "新建数据",
@@ -315,7 +317,7 @@ export abstract class BaseAdapter<M, TSource,
     get update() {
         return this._getFieldConfig({
             type: this.modelType,
-            description: `更新${this.name}`,
+            description: `更新${this.description}`,
             resolve: this.updateResolve.bind(this),
             args: {
                 data: {
@@ -334,7 +336,7 @@ export abstract class BaseAdapter<M, TSource,
     get remove() {
         return this._getFieldConfig({
             type: GraphQLBoolean,
-            description: `删除${this.name}`,
+            description: `删除${this.description}`,
             resolve: this.removeResolve.bind(this),
             args: {
                 ...this.primaryKey

@@ -80,10 +80,20 @@ export function toGraphQL(sequelizeType: SequelizeType): GraphQLType | GraphQLIn
     if ("ENUM" === key) {
         return new GraphQLEnumType({
             name: "tempEnumName",
-            values: _((sequelizeType as EnumDataType<any>).values)
-                .mapKeys(sanitizeEnumValue)
-                .mapValues(v => ({value: v}))
-                .value()
+            values: (sequelizeType as EnumDataType<any>).values.reduce((memo, value: string) => {
+                value = sanitizeEnumValue(value);
+                //修复此三个值为枚举值graphql的报错
+                if (["true", "false", "null"].includes(value)) {
+                    memo[value.toUpperCase()] = {
+                        value
+                    };
+                } else {
+                    memo[value] = {
+                        value
+                    };
+                }
+                return memo;
+            }, {})
         });
     }
 
