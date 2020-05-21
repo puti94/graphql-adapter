@@ -67,32 +67,32 @@ function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: Ge
         obj.adapters[key] = modelSchema;
         return obj;
     }, {query: {}, mutation: {}, subscription: {}, adapters: {}});
-    const mutationFields = {
-        ...mutation,
-        ...thunkGet(customMutation, adapters)
-    };
-    const subscriptionFields = {
-        ...subscription,
-        ...thunkGet(customSubscription, adapters)
-    };
     return new GraphQLSchema({
         query: new GraphQLObjectType({
             name: "RootQuery",
             description: "Base Query",
-            fields: {
+            fields: () => ({
                 ...query,
                 ...thunkGet(customQuery, adapters)
-            }
+            })
         }),
-        mutation: includeMutation && !_.isEmpty(mutationFields) ? new GraphQLObjectType({
+        mutation: includeMutation ? new GraphQLObjectType({
             name: "RootMutation",
             description: "Base Mutation",
-            fields: mutationFields
+            fields: () => ({
+                ...mutation,
+                ...thunkGet(customMutation, adapters)
+            })
         }) : null,
-        subscription: includeSubscription && !_.isEmpty(subscription) ? new GraphQLObjectType({
+        subscription: includeSubscription ? new GraphQLObjectType({
             name: "RootSubscription",
             description: "Base Subscription",
-            fields: subscriptionFields
+            fields: () => (
+                {
+                    ...subscription,
+                    ...thunkGet(customSubscription, adapters)
+                }
+            )
         }) : null
     });
 }
