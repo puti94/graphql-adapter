@@ -1,7 +1,7 @@
 import {BaseAdapter, PageType, BaseConfig} from "./BaseAdapter";
 import {
     GraphQLFieldConfigArgumentMap,
-    GraphQLFieldConfigMap,
+    GraphQLFieldConfigMap, GraphQLFloat, GraphQLInt,
     GraphQLList,
     GraphQLResolveInfo,
 } from "graphql";
@@ -63,7 +63,7 @@ function _getHandlerFindOptionsFn(config: SequelizeAdapterConfig<any, any, any>,
 }
 
 function _getHandlerAggregateOptions(config: SequelizeAdapterConfig<any, any, any>, action: string, args: SequelizeArgs, context: any, info: GraphQLResolveInfo): AggregateOptions<any> | Promise<AggregateOptions<any>> {
-    const options = {
+    const options: AggregateOptions<any> = {
         where: replaceWhereOperators(args.where || {})
     };
     if (_.isFunction(config.handlerAggregateOptions)) return Promise.resolve(config.handlerAggregateOptions(action, options, args, context, info));
@@ -97,7 +97,39 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             ...config
         });
         this.model = model;
-        this.modelFields = modelFields;
+        this.modelFields = {
+            _count: {
+                type: GraphQLInt,
+                resolve: ((source: M) => {
+                    // @ts-ignore
+                    const value = source["_count"];
+                    if (!_.isUndefined(value)) {
+                        // @ts-ignore
+                        return value;
+                    } else if (_.isFunction(source?.getDataValue)) {
+                        // @ts-ignore
+                        return source?.getDataValue("_count");
+                    }
+                    return null;
+                })
+            },
+            _avg: {
+                type: GraphQLFloat,
+                resolve: ((source: M) => {
+                    // @ts-ignore
+                    const value = source["_avg"];
+                    if (!_.isUndefined(value)) {
+                        // @ts-ignore
+                        return value;
+                    } else if (_.isFunction(source?.getDataValue)) {
+                        // @ts-ignore
+                        return source?.getDataValue("_avg");
+                    }
+                    return null;
+                })
+            },
+            ...modelFields
+        };
         this.createFields = createFields;
         this.updateFields = updateFields;
         this.inputArgs = inputArgs;
@@ -150,7 +182,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             const isList = ["BelongsToMany", "HasMany"].includes(association.associationType);
             fields[association.as] = {
                 type: isList ? new GraphQLList(type) : type,
-                //管理表可以传递自己的参数,移除scope选项
+                //关联表可以传递自己的参数,移除scope选项
                 args: _.omit(isList ? modelSchema.inputListArgs : modelSchema.inputArgs, ["scope"]),
                 resolve: resolver(association, {
                     before: _getHandlerFindOptionsFn(this.config, association.as),
@@ -274,7 +306,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
 
     async getAggregateResolve(source: TSource, {field, scope, aggregateFunction, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
         const number = await this.model.aggregate(field, aggregateFunction, await Promise.resolve(_getHandlerAggregateOptions(this.config, aggregateFunction, args, context, info)));
-        return isNaN(number) ? 0 : number;
+        return isNaN(number) ? null : number;
     }
 
 }

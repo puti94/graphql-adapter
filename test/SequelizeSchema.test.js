@@ -10,7 +10,7 @@ const _ = require("lodash");
 const {User} = models;
 
 describe("#SequelizeSchema", function () {
-  const schema = generateSchema(models);
+  const schema = generateSchema(models, {includeSubscription: false});
   before(async function () {
     await sequelize.sync({force: true});
   });
@@ -128,21 +128,6 @@ describe("#SequelizeSchema", function () {
             createProject: {
               title: "P-G",
               user: {name: "U-E"}
-            }
-          }
-        };
-        assert.deepStrictEqual(_.cloneDeep(response), expected);
-      });
-      
-      it("创建用户H添加项目P并且更新", async function () {
-        const userH = await User.create({name: "U-H", projects: [{title: "P-P"}]}, {include: "projects"});
-        const response = await graphql(schema, `mutation{ updateUser(data:{name:"U-H-1",projects:[{title:"P-P-1",id:${userH.projects[0].id}}]})},id:${userH.id}){name,id,projects{title,id} }}`);
-        const expected = {
-          data: {
-            updateUser: {
-              name: "U-H-1",
-              id: userH.id,
-              projects: [{id: userH.projects[0].id, title: "P-P-1"}]
             }
           }
         };

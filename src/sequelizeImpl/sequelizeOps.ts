@@ -6,5 +6,5 @@ export default transform(Op, (o, v, k) => {
         return;
     }
     // @ts-ignore
-    o[`${k}`] = v;
+    o[`_${k}`] = v;
 });

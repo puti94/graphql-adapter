@@ -1,5 +1,5 @@
 import {GraphQLInputFieldConfigMap} from "graphql";
-import {scope, limit, order, where, offset} from "./baseFields";
+import {scope, limit, order, where, offset, group, having, attributes} from "./baseFields";
 
 export function defaultListArgs(options: {
     defaultLimit?: number;
@@ -11,7 +11,10 @@ export function defaultListArgs(options: {
             defaultValue: options.defaultLimit,
         },
         order,
+        group,
         where,
+        attributes,
+        having,
         offset
     };
-};
+}

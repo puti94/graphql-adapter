@@ -5,6 +5,16 @@ const where = {
     type: JSONType,
     description: "A JSON object conforming the the shape specified in http://docs.sequelizejs.com/en/latest/docs/querying/"
 };
+
+const having = {
+    type: JSONType,
+    description: "A JSON object conforming the the shape specified in http://docs.sequelizejs.com/en/latest/docs/querying/"
+};
+
+const attributes = {
+    type: JSONType,
+    description: "A JSON object conforming the the shape specified in http://docs.sequelizejs.com/en/latest/docs/querying/"
+};
 const AggregateEnumType = new GraphQLEnumType({
     name: "AggregateMenu",
     values: {
@@ -19,6 +29,14 @@ const AggregateEnumType = new GraphQLEnumType({
         min: {
             description: "最小值",
             value: "min"
+        },
+        count: {
+            description: "总量",
+            value: "count"
+        },
+        avg: {
+            description: "平均值",
+            value: "avg"
         }
     }
 });
@@ -42,6 +60,12 @@ const field = {
     type: new GraphQLNonNull(GraphQLString),
     description: "model single field name"
 };
+
+const group = {
+    type: new GraphQLList(GraphQLString),
+    description: "分组"
+};
+
 const order = {
     description: `
          takes an array of items to order the query
@@ -59,5 +83,8 @@ export {
     offset,
     where,
     field,
+    group,
+    having,
+    attributes,
     aggregateFunction
 };

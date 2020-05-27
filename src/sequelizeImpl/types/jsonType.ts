@@ -18,7 +18,7 @@ import _ from "lodash";
 import {Kind} from "graphql/language";
 
 const JSONType: GraphQLScalarType = new GraphQLScalarType({
-    name: "SequelizeJSON",
+    name: "JSONType",
     description: "The `JSON` scalar type represents raw JSON as values.",
     serialize: value => value,
     parseValue: value => typeof value === "string" ? JSON.parse(value) : value,

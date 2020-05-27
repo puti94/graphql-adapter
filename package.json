@@ -1,6 +1,6 @@
 {
   "name": "graphql-adapter",
-  "version": "0.2.11",
+  "version": "0.3.0",
   "description": "一个基于 sequelize ORM框架自动生成 graphql schema 的库",
   "repository": {
     "type": "git",
@@ -27,7 +27,6 @@
     "debug": "npm run build && npm run watch-debug"
   },
   "dependencies": {
-    "graphql-subscriptions": "^1.1.0",
     "lodash": "^4.17.15"
   },
   "files": [
@@ -53,6 +52,7 @@
     "eslint": "^6.4.0",
     "express": "^4.17.1",
     "graphql": "^15.0.0",
+    "graphql-subscriptions": "^1.1.0",
     "graphql-relay": "0.6.0",
     "graphql-sequelize": "^9.4.0",
     "mocha": "^7.1.2",

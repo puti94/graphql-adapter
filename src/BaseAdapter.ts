@@ -6,7 +6,7 @@ import {
     GraphQLFieldResolver,
     GraphQLFieldConfigMap,
     GraphQLFieldConfigArgumentMap, GraphQLBoolean, GraphQLFieldConfig,
-    GraphQLNonNull, Thunk, GraphQLObjectTypeConfig, GraphQLInputObjectTypeConfig, GraphQLResolveInfo
+    GraphQLNonNull, Thunk, GraphQLObjectTypeConfig, GraphQLInputObjectTypeConfig, GraphQLResolveInfo, GraphQLFloat
 } from "graphql";
 
 import _ from "lodash";
@@ -282,7 +282,7 @@ export abstract class BaseAdapter<M, TSource,
      */
     get getAggregation() {
         return this._getFieldConfig({
-            type: GraphQLInt,
+            type: GraphQLFloat,
             description: `${this.description}聚合数据,支持 sum | min | max`,
             args: {
                 ...this.aggregationArgs,

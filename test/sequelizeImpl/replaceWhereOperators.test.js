@@ -7,17 +7,17 @@ describe("#replaceWhereOperators", () => {
   it("should be true", function () {
     const operators = replaceWhereOperators({
       id: {
-        or: ["1", "2"]
+        _or: ["1", "2"]
       },
-      [Op.or]: [
+      _or: [
         {
           title: {
-            like: "Boat%"
+            _like: "Boat%"
           }
         },
         {
           description: {
-            like: "%boat%"
+            _like: "%boat%"
           }
         }
       ]

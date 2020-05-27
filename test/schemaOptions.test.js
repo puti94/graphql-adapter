@@ -1,4 +1,4 @@
-const {SequelizeAdapter, where, scope, limit, offset, order, aggregateFunction, Query, Mutation, Subscription, DateType, field} = require("../dist");
+const {SequelizeAdapter, where, scope, limit, offset, order, aggregateFunction, Query, Mutation, Subscription, DateType, field, having, attributes, group} = require("../dist");
 const {GraphQLInt, GraphQLNonNull, GraphQLString} = require("graphql");
 const assert = require("assert");
 const _ = require("lodash");
@@ -35,6 +35,9 @@ describe("#SequelizeSchema Options", () => {
     const adapter = new SequelizeAdapter(Model);
     assert.deepStrictEqual(adapter.inputListArgs, {
       scope,
+      having,
+      attributes,
+      group,
       limit: {
         defaultValue: 20,
         ...limit
@@ -46,7 +49,7 @@ describe("#SequelizeSchema Options", () => {
   });
   it("modelFields", async function () {
     const adapter = new SequelizeAdapter(Model);
-    assert.deepStrictEqual(adapter.modelFields, {
+    assert.deepStrictEqual(_.omit(adapter.modelFields, ["_count", "_avg"]), {
       id: {
         type: new GraphQLNonNull(GraphQLInt)
       },
@@ -79,7 +82,7 @@ describe("#SequelizeSchema Options", () => {
         }
       }
     });
-    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["id", "name", "hello"]);
+    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["_count", "_avg", "id", "name", "hello"]);
   });
   it("createTypeConfig", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -119,7 +122,7 @@ describe("#SequelizeSchema Options", () => {
   });
   it("modelType", async function () {
     const adapter = new SequelizeAdapter(sequelize.define("test", {name: DataTypes.STRING}, {timestamps: false}));
-    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name", "_count", "_avg"]));
   });
   it("queryFields", async function () {
     const adapter = new SequelizeAdapter(Model);

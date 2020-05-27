@@ -1,4 +1,4 @@
-const {defaultListArgs, limit, offset, order, scope, where} = require("../../dist/sequelizeImpl");
+const {defaultListArgs, limit, offset, order, scope, where, having, attributes, group} = require("../../dist/sequelizeImpl");
 const assert = require("assert");
 const {
   GraphQLString,
@@ -10,7 +10,7 @@ describe("#defaultListArgs", () => {
     limit: {...limit, defaultValue: 10},
     scope,
     where,
-    order, offset
+    order, offset, group, attributes, having
   };
   
   it("no options", function () {

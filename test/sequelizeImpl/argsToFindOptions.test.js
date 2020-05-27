@@ -12,7 +12,7 @@ describe("#argsToFindOptions", () => {
       where: {
         name: "name",
         age: {
-          gt: 6
+          _gt: 6
         }
       },
       order: [["createdAt", "DESC"]]
