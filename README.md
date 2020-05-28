@@ -93,13 +93,13 @@ httpServer.listen(PORT, () => {
 - getListPage(查找列表带总量)
 - getAggregation(聚合接口 min | max | sum)    
 
-![image text](./img/get.png)
+![image text](./img/query.png)
 ### mutation(异变)
 - create(新建)
 - remove(删除)
 - update(更新)    
 
-![image text](./img/create.png)
+![image text](./img/mutation.png)
 ### subscription(监听)
 - created(新建事件)
 - removed(删除事件)
