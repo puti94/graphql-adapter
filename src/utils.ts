@@ -2,14 +2,14 @@ import {
     getNullableType,
     GraphQLFieldConfigArgumentMap,
     GraphQLFieldConfigMap,
-    GraphQLSchema, GraphQLObjectType, Thunk
+    GraphQLSchema, GraphQLObjectType
 } from "graphql";
 import {Model, ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
 
 function getName(model: ModelType) {
-    return _.upperFirst(model.name);
+    return model.name;
 }
 
 function map2NullableType(fields: GraphQLFieldConfigArgumentMap): GraphQLFieldConfigArgumentMap {
@@ -69,7 +69,7 @@ function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: Ge
     }, {query: {}, mutation: {}, subscription: {}, adapters: {}});
     return new GraphQLSchema({
         query: new GraphQLObjectType({
-            name: "RootQuery",
+            name: "Query",
             description: "Base Query",
             fields: () => ({
                 ...query,
@@ -77,7 +77,7 @@ function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: Ge
             })
         }),
         mutation: includeMutation ? new GraphQLObjectType({
-            name: "RootMutation",
+            name: "Mutation",
             description: "Base Mutation",
             fields: () => ({
                 ...mutation,
@@ -85,7 +85,7 @@ function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: Ge
             })
         }) : null,
         subscription: includeSubscription ? new GraphQLObjectType({
-            name: "RootSubscription",
+            name: "Subscription",
             description: "Base Subscription",
             fields: () => (
                 {

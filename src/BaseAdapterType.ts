@@ -163,6 +163,19 @@ export interface CommonConfig {
 
 export interface BaseFieldsConfig<TSource, TContext> {
     /**
+     * 自定义query字段
+     */
+    queryFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;
+    /**
+     * 自定义mutation字段
+     */
+    mutationFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;
+    /**
+     * 自定义subscription字段
+     */
+    subscriptionFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;
+
+    /**
      * 关联的字段
      */
     associationsFields?: Thunk<GraphQLFieldConfigMap<TSource, TContext>>;

@@ -383,8 +383,22 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLFieldConfigMap<TSource, TContext>}
      */
     get queryFields(): GraphQLFieldConfigMap<TSource, TContext> {
-        const {includeQuery = true, excludeQuery} = this.config;
+        const {includeQuery = true, excludeQuery, queryFields} = this.config;
         if (!includeQuery) return {};
+        const fields = [Query.ONE, Query.LIST, Query.LIST_PAGE, Query.AGGREGATION].reduce<GraphQLFieldConfigMap<TSource, TContext>>
+        ((memo, key) => {
+            if (!filterAction(includeQuery, excludeQuery, key)) return memo;
+            if (key === Query.ONE) {
+                memo[getFieldName("one", this.config.getOne)] = this.getOne;
+            } else if (key === Query.LIST) {
+                memo[getFieldName("list", this.config.getList)] = this.getList;
+            } else if (key === Query.LIST_PAGE) {
+                memo[getFieldName("listPage", this.config.getListPage)] = this.getListPage;
+            } else if (key === Query.AGGREGATION) {
+                memo[getFieldName("aggregation", this.config.getAggregation)] = this.getAggregation;
+            }
+            return memo;
+        }, {});
         return {
             [this.name]: {
                 description: this.description,
@@ -393,20 +407,10 @@ export abstract class BaseAdapter<M, TSource,
                 },
                 type: new GraphQLObjectType({
                     name: `${this.upperName}Query`,
-                    fields: [Query.ONE, Query.LIST, Query.LIST_PAGE, Query.AGGREGATION].reduce<GraphQLFieldConfigMap<TSource, TContext>>
-                    ((memo, key) => {
-                        if (!filterAction(includeQuery, excludeQuery, key)) return memo;
-                        if (key === Query.ONE) {
-                            memo[getFieldName("one", this.config.getOne)] = this.getOne;
-                        } else if (key === Query.LIST) {
-                            memo[getFieldName("list", this.config.getList)] = this.getList;
-                        } else if (key === Query.LIST_PAGE) {
-                            memo[getFieldName("listPage", this.config.getListPage)] = this.getListPage;
-                        } else if (key === Query.AGGREGATION) {
-                            memo[getFieldName("aggregation", this.config.getAggregation)] = this.getAggregation;
-                        }
-                        return memo;
-                    }, {})
+                    fields: {
+                        ...fields,
+                        ...thunkGet(queryFields || {})
+                    }
                 })
             }
         };
@@ -417,8 +421,20 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLFieldConfigMap<TSource, TContext>}
      */
     get mutationFields(): GraphQLFieldConfigMap<TSource, TContext> {
-        const {includeMutation = true, excludeMutation} = this.config;
+        const {includeMutation = true, excludeMutation, mutationFields} = this.config;
         if (!includeMutation) return {};
+        const fields = [Mutation.CREATE, Mutation.UPDATE, Mutation.REMOVE].reduce<GraphQLFieldConfigMap<TSource, TContext>>
+        ((memo, key) => {
+            if (!filterAction(includeMutation, excludeMutation, key)) return memo;
+            if (key === Mutation.CREATE) {
+                memo[getFieldName("create", this.config.create)] = this.create;
+            } else if (key === Mutation.REMOVE && this.primaryKeyName) {
+                memo[getFieldName("remove", this.config.remove)] = this.remove;
+            } else if (key === Mutation.UPDATE && this.primaryKeyName) {
+                memo[getFieldName("update", this.config.update)] = this.update;
+            }
+            return memo;
+        }, {});
         return {
             [this.name]: {
                 description: this.description,
@@ -427,18 +443,10 @@ export abstract class BaseAdapter<M, TSource,
                 },
                 type: new GraphQLObjectType({
                     name: `${this.upperName}Mutation`,
-                    fields: [Mutation.CREATE, Mutation.UPDATE, Mutation.REMOVE].reduce<GraphQLFieldConfigMap<TSource, TContext>>
-                    ((memo, key) => {
-                        if (!filterAction(includeMutation, excludeMutation, key)) return memo;
-                        if (key === Mutation.CREATE) {
-                            memo[getFieldName("create", this.config.create)] = this.create;
-                        } else if (key === Mutation.REMOVE && this.primaryKeyName) {
-                            memo[getFieldName("remove", this.config.remove)] = this.remove;
-                        } else if (key === Mutation.UPDATE && this.primaryKeyName) {
-                            memo[getFieldName("update", this.config.update)] = this.update;
-                        }
-                        return memo;
-                    }, {})
+                    fields: {
+                        ...fields,
+                        ...thunkGet(mutationFields || {})
+                    },
                 })
             }
         };
@@ -477,8 +485,20 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLFieldConfigMap<TSource, TContext>}
      */
     get subscriptionFields(): GraphQLFieldConfigMap<TSource, TContext> {
-        const {includeSubscription = true, excludeSubscription, pubSub, filterSubscription} = this.config;
+        const {includeSubscription = true, excludeSubscription, pubSub, filterSubscription, subscriptionFields} = this.config;
         if (_.isUndefined(pubSub) || !includeSubscription) return {};
+        const fields = [Subscription.CREATED, Subscription.REMOVED, Subscription.UPDATED].reduce<GraphQLFieldConfigMap<TSource, TContext>>
+        ((memo, key) => {
+            if (!filterAction(includeSubscription, excludeSubscription, key)) return memo;
+            if (key === Subscription.CREATED) {
+                memo["Created"] = this.created;
+            } else if (key === Subscription.UPDATED) {
+                memo["Updated"] = this.updated;
+            } else if (key === Subscription.REMOVED) {
+                memo["Removed"] = this.removed;
+            }
+            return memo;
+        }, {});
         return {
             [this.name]: {
                 description: this.description,
@@ -492,18 +512,10 @@ export abstract class BaseAdapter<M, TSource,
                 }),
                 type: new GraphQLObjectType({
                     name: `${this.upperName}Event`,
-                    fields: [Subscription.CREATED, Subscription.REMOVED, Subscription.UPDATED].reduce<GraphQLFieldConfigMap<TSource, TContext>>
-                    ((memo, key) => {
-                        if (!filterAction(includeSubscription, excludeSubscription, key)) return memo;
-                        if (key === Subscription.CREATED) {
-                            memo["Created"] = this.created;
-                        } else if (key === Subscription.UPDATED) {
-                            memo["Updated"] = this.updated;
-                        } else if (key === Subscription.REMOVED) {
-                            memo["Removed"] = this.removed;
-                        }
-                        return memo;
-                    }, {})
+                    fields: {
+                        ...fields,
+                        ...thunkGet(subscriptionFields || {})
+                    }
                 })
             }
         };

@@ -193,4 +193,31 @@ describe("#SequelizeSchema Options", () => {
     });
     assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["remove"]));
   });
+  
+  it("customQueryFields", async function () {
+    const adapter = new SequelizeAdapter(Model, {
+      queryFields: {
+        custom: {
+          type: GraphQLString,
+          resolve() {
+            return "custom";
+          }
+        }
+      }
+    });
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["one", "aggregation", "list", "listPage", "custom"]));
+  });
+  it("customMutationFields", async function () {
+    const adapter = new SequelizeAdapter(Model, {
+      mutationFields: {
+        custom: {
+          type: GraphQLString,
+          resolve() {
+            return "custom";
+          }
+        }
+      }
+    });
+    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["create", "remove", "update", "custom"]));
+  });
 });
