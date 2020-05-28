@@ -4,7 +4,7 @@
  * Time: 2020-05-11 16:15.
  */
 module.exports = function (sequelize, DataTypes) {
-  const task = sequelize.define("task", {
+  const task = sequelize.define("Task", {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,

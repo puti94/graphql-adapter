@@ -59,7 +59,7 @@ const server = new ApolloServer({
       }
     }
   }),
-  tracing: true,
+  tracing: true
 });
 
 server.applyMiddleware({app, path: "/graphql"});

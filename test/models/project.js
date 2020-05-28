@@ -23,7 +23,7 @@ module.exports = function (sequelize, DataTypes) {
     comment: "项目"
   });
   project.associate = function (models) {
-    project.belongsTo(models.User, {foreignKey: "ownerId"});
+    project.belongsTo(models.User, {foreignKey: "ownerId", as: "user"});
   };
   
   return project;

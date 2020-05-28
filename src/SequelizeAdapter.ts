@@ -150,19 +150,17 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     private _initialHooks() {
         this.model.afterCreate(this.createdEvent, (attributes: M) => {
             this.config.pubSub?.publish(this.createdEvent, {
-                [this.createdEvent]: attributes.get()
+                [this.name]: {Created: attributes.get()}
             });
         });
-
         this.model.afterUpdate(this.updatedEvent, (attributes: M) => {
             this.config.pubSub?.publish(this.updatedEvent, {
-                [this.updatedEvent]: attributes.get()
+                [this.name]: {Updated: attributes.get()}
             });
         });
-
         this.model.afterDestroy(this.removedEvent, (attributes: M) => {
             this.config.pubSub?.publish(this.removedEvent, {
-                [this.removedEvent]: attributes.get()
+                [this.name]: {Removed: attributes.get()}
             });
         });
     }

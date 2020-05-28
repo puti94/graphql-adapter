@@ -126,13 +126,13 @@ describe("#SequelizeSchema Options", () => {
   });
   it("queryFields", async function () {
     const adapter = new SequelizeAdapter(Model);
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields)), new Set(["getTestConfig", "getTestConfigAggregation", "getTestConfigList", "getTestConfigListPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["one", "aggregation", "list", "listPage"]));
   });
   it("queryFieldsIncludeOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
       includeQuery: [Query.LIST_PAGE]
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields)), new Set(["getTestConfigListPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
   });
   it("queryFieldsIncludeFalseOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -142,32 +142,32 @@ describe("#SequelizeSchema Options", () => {
   });
   it("queryFieldsExcludeOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
-      excludeQuery: [Query.GET, Query.AGGREGATION, Query.LIST]
+      excludeQuery: [Query.ONE, Query.AGGREGATION, Query.LIST]
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields)), new Set(["getTestConfigListPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
   });
   it("queryFieldsIncludeFuncOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
       includeQuery: (key) => key === Query.LIST_PAGE
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields)), new Set(["getTestConfigListPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
   });
   it("queryFieldsExcludeFuncOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
       excludeQuery: (key) => key !== Query.LIST_PAGE
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields)), new Set(["getTestConfigListPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
   });
   
   it("mutationFields", async function () {
     const adapter = new SequelizeAdapter(Model);
-    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields)), new Set(["createTestConfig", "removeTestConfig", "updateTestConfig"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["create", "remove", "update"]));
   });
   it("mutationFieldsIncludeOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
       includeMutation: [Mutation.UPDATE]
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields)), new Set(["updateTestConfig"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["update"]));
   });
   it("mutationFieldsIncludeFalseOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -179,18 +179,18 @@ describe("#SequelizeSchema Options", () => {
     const adapter = new SequelizeAdapter(Model, {
       excludeMutation: [Mutation.CREATE, Mutation.REMOVE]
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields)), new Set(["updateTestConfig"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["update"]));
   });
   it("mutationFieldsIncludeFuncOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
       includeMutation: (key) => key === Mutation.REMOVE
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields)), new Set(["removeTestConfig"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["remove"]));
   });
   it("mutationFieldsExcludeFuncOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
       excludeMutation: (key) => key !== Mutation.REMOVE
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields)), new Set(["removeTestConfig"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.mutationFields[adapter.name].type.getFields())), new Set(["remove"]));
   });
 });

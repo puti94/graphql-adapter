@@ -1,6 +1,6 @@
 {
   "name": "graphql-adapter",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "一个基于 sequelize ORM框架自动生成 graphql schema 的库",
   "repository": {
     "type": "git",
@@ -47,7 +47,7 @@
     "@types/validator": "^13.0.0",
     "@typescript-eslint/eslint-plugin": "^2.3.1",
     "@typescript-eslint/parser": "^2.3.1",
-    "apollo-server-express": "^2.13.0",
+    "apollo-server-express": "^2.14.0",
     "chai": "^4.2.0",
     "eslint": "^6.4.0",
     "express": "^4.17.1",

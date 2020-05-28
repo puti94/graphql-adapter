@@ -15,7 +15,7 @@ import Maybe from "graphql/tsutils/Maybe";
  * 查询的类型
  */
 export enum Query {
-    GET = "get",
+    ONE = "one",
     LIST = "list",
     LIST_PAGE = "listPage",
     AGGREGATION = "aggregation",
