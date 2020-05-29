@@ -11,12 +11,9 @@ const server = new ApolloServer({
   schema: generateSchema(models, {
     pubSub: new PubSub(),
     handlerFindOptions: ((action, options) => {
-      console.log("action", action, options);
-      return options;
-    }),
-    handlerAggregateOptions: ((action, options) => {
-      console.log("action", action, options);
-      return options;
+      return {
+        ...options,
+      };
     }),
     filterSubscription: (response) => {
       console.log("Subscription", response);

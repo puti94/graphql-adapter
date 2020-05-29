@@ -5,7 +5,12 @@ import {
     GraphQLList,
     GraphQLResolveInfo,
 } from "graphql";
-import {FindOptions, AggregateOptions, Model, ModelCtor} from "sequelize";
+import {
+    FindOptions,
+    AggregateOptions,
+    Model,
+    ModelCtor,
+} from "sequelize";
 import {getName} from "./utils";
 import {NotFoundError} from "./error";
 import {attributeFields, defaultArgs, defaultListArgs, resolver} from "./sequelizeImpl";
@@ -72,7 +77,7 @@ function _getHandlerAggregateOptions(config: SequelizeAdapterConfig<any, any, an
 
 
 export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAdapter<M, TSource, TContext, SequelizeArgs, SequelizeAdapterConfig<M, TSource, TContext>> {
-    protected model: ModelCtor<M>;
+    model: ModelCtor<M>;
     createFields: GraphQLFieldConfigArgumentMap;
     updateFields: GraphQLFieldConfigArgumentMap;
     inputArgs: GraphQLFieldConfigArgumentMap;
@@ -180,14 +185,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             const isList = ["BelongsToMany", "HasMany"].includes(association.associationType);
             fields[association.as] = {
                 type: isList ? new GraphQLList(type) : type,
-                //关联表可以传递自己的参数,移除scope选项
-                args: _.omit(isList ? modelSchema.inputListArgs : modelSchema.inputArgs, ["scope"]),
-                resolve: resolver(association, {
-                    before: _getHandlerFindOptionsFn(this.config, association.as),
-                    handler: (findOptions, source) => {
-                        return source[association.accessors.get](findOptions);
-                    }
-                })
+                args: isList ? _.omit(modelSchema.inputListArgs, ["scope", "offset", "having"]) : undefined
             };
             return fields;
         }, {});
@@ -215,16 +213,6 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
      * @returns {GraphQLFieldConfigArgumentMap}
      */
     get associationsUpdateFields(): GraphQLFieldConfigArgumentMap {
-        // const {associations} = this.model;
-        // return Object.keys(associations).reduce<GraphQLFieldConfigArgumentMap>((fields, key) => {
-        //     const association = associations[key];
-        //     const modelSchema = new SequelizeAdapter(association.target);
-        //     const type = modelSchema.updateType;
-        //     fields[association.as] = {
-        //         type: ["BelongsToMany", "HasMany"].includes(association.associationType) ? new GraphQLList(type) : type,
-        //     };
-        //     return fields;
-        // }, {});
         // TODO 关联从表一并更新逻辑不好处理，暂时返回空对象
         return {};
     }
@@ -232,7 +220,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     getOneResolve(source: TSource, {scope, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
         return resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
             before: _getHandlerFindOptionsFn(this.config, "findOne"),
-            handler:
+            resolve:
                 (findOptions) => this.model.scope(scope).findOne(findOptions)
         })
         (source, args, context, info);
@@ -241,14 +229,15 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     getListResolve(source: TSource, {scope, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
         return resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
             before: _getHandlerFindOptionsFn(this.config, "findList"),
-            handler: (findOptions) => this.model.scope(scope).findAll(findOptions)
+            resolve: (findOptions) => this.model.scope(scope).findAll(findOptions)
         })(source, args, context, info);
     }
 
     getListPageResolve(source: TSource, {scope, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
         return resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
+            isCountType: true,
             before: _getHandlerFindOptionsFn(this.config, "findAndCountAll"),
-            handler: (findOptions) => this.model.scope(scope).findAndCountAll(findOptions)
+            resolve: (findOptions) => this.model.scope(scope).findAndCountAll(findOptions)
         })(source, args, context, info) as unknown as PageType<M>;
     }
 
@@ -264,7 +253,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             const primaryKeyValue = args[this.primaryKeyName];
             const model: M = await resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
                 before: _getHandlerFindOptionsFn(this.config, "remove"),
-                handler: () => this.model.findByPk(primaryKeyValue, {
+                resolve: () => this.model.findByPk(primaryKeyValue, {
                     transaction: t,
                     lock: t.LOCK.UPDATE
                 })
@@ -287,7 +276,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             const primaryKeyValue = args[this.primaryKeyName];
             let model: M = await resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
                 before: _getHandlerFindOptionsFn(this.config, "update"),
-                handler: () => this.model.findByPk(primaryKeyValue, {
+                resolve: () => this.model.findByPk(primaryKeyValue, {
                     transaction: t,
                     lock: t.LOCK.UPDATE
                 })
