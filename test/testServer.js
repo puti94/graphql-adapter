@@ -30,7 +30,7 @@ const server = new ApolloServer({
         type: GraphQLBoolean,
         args: {
           path: {
-            type: new GraphQLNonNull(GraphQLString),
+            type:  GraphQLNonNull(GraphQLString),
             description: "路径"
           },
         },

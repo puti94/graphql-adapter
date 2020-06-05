@@ -13,7 +13,7 @@ import {
     GraphQLObjectTypeConfig,
     GraphQLInputObjectTypeConfig,
     GraphQLResolveInfo,
-    GraphQLFloat,
+    GraphQLFloat, GraphQLEnumType, GraphQLEnumTypeConfig, GraphQLEnumValueConfigMap,
 } from "graphql";
 
 import _ from "lodash";
@@ -33,24 +33,27 @@ import {
 
 export * from "./BaseAdapterType";
 import {withFilter} from "graphql-subscriptions";
+import {OrderSortEnum} from "./sequelizeImpl";
 
 
 /**
  * 类型容器
  * @type {Map<string, GraphQLObjectType<any, any> | GraphQLInputObjectType>}
  */
-export const typeMap = new Map<string, GraphQLObjectType | GraphQLInputObjectType>();
+export const typeMap = new Map<string, GraphQLObjectType | GraphQLInputObjectType | GraphQLEnumType>();
+
+
+type WithNameType = GraphQLObjectType | GraphQLInputObjectType | GraphQLEnumType
 
 /**
  *
  * @param config
- * @param isInput
- * @returns {GraphQLObjectType<any, any> | GraphQLInputObjectType}
+ * @returns {GraphQLObjectType | GraphQLInputObjectType | GraphQLEnumType}
+ * @param type
  */
-export function getCacheGraphqlType(config: GraphQLObjectTypeConfig<any, any> | GraphQLInputObjectTypeConfig, isInput?: boolean): GraphQLObjectType | GraphQLInputObjectType {
+export function getCacheGraphqlType<TType extends GraphQLObjectTypeConfig<any, any> | GraphQLInputObjectTypeConfig | GraphQLEnumTypeConfig>(config: TType, type: any = GraphQLObjectType): WithNameType {
     if (!typeMap.has(config.name)) {
-        typeMap.set(config.name, isInput ? new GraphQLInputObjectType(config as GraphQLInputObjectTypeConfig)
-            : new GraphQLObjectType(config as GraphQLObjectTypeConfig<any, any>));
+        typeMap.set(config.name, new type(config));
     }
     return typeMap.get(config.name);
 }
@@ -122,7 +125,7 @@ export abstract class BaseAdapter<M, TSource,
                 response = await after(response, source, args, ctx, info);
             }
             if (_.isFunction(this.config.after)) {
-                return await (this.config.after)(response, source, args, ctx, info);
+                return this.config.after(response, source, args, ctx, info);
             }
             return response;
         };
@@ -133,17 +136,52 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLObjectType}
      */
     get modelType(): GraphQLObjectType {
-        return getCacheGraphqlType({
+        const {mapperModelFields = v => v} = this.config;
+        return getCacheGraphqlType<GraphQLObjectTypeConfig<any, any>>({
             name: this.upperName,
             description: this.description,
             ...(this.config.modelTypeConfig || {}),
-            fields: () => ({
+            fields: () => mapperModelFields({
                 ...this.modelFields,
                 ...this.associationsFields,
                 ...thunkGet(this.config.associationsFields || {}),
                 ...thunkGet(this.config.modelFields || {}),
             })
         }) as GraphQLObjectType;
+    }
+
+    /**
+     * 模型字段枚举
+     * @returns {GraphQLObjectType}
+     */
+    get fieldEnumType(): GraphQLEnumType {
+        return getCacheGraphqlType<GraphQLEnumTypeConfig>({
+            name: `${this.upperName}FieldEnum`,
+            values: Object.keys(this.modelFields).reduce<GraphQLEnumValueConfigMap>((memo, key) => {
+                memo[key] = {value: key, description: this.modelFields[key].description};
+                return memo;
+            }, {})
+        }, GraphQLEnumType) as GraphQLEnumType;
+    }
+
+    /**
+     * 排序类型
+     * @returns {GraphQLInputObjectType}
+     */
+    get orderType(): GraphQLInputObjectType {
+        return getCacheGraphqlType<GraphQLInputObjectTypeConfig>({
+            name: `${this.upperName}OrderType`,
+            fields: {
+                name: {
+                    description: "sort field",
+                    type: new GraphQLNonNull(this.fieldEnumType)
+                },
+                sort: {
+                    description: "sort type",
+                    type: OrderSortEnum
+                }
+            }
+        }, GraphQLInputObjectType) as GraphQLInputObjectType;
     }
 
     /**
@@ -171,17 +209,18 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLInputObjectType}
      */
     get updateType(): GraphQLInputObjectType {
+        const {mapperUpdateTypeFields = v => v} = this.config;
         return getCacheGraphqlType({
             name: `${this.upperName}UpdateInput`,
             ...(this.config.updateTypeConfig || {}),
-            fields: () => ({
+            fields: () => mapperUpdateTypeFields({
                 ...map2NullableType(this.updateFields),
                 ...this.associationsUpdateFields,
                 ...thunkGet(this.config.updateTypeConfig?.fields || {}),
                 ...thunkGet(this.config.associationsUpdateFields || {}),
 
             })
-        }, true) as GraphQLInputObjectType;
+        }, GraphQLInputObjectType) as GraphQLInputObjectType;
     }
 
     /**
@@ -189,16 +228,17 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLInputObjectType}
      */
     get createType(): GraphQLInputObjectType {
+        const {mapperCreateTypeFields = v => v} = this.config;
         return getCacheGraphqlType({
             name: `${this.upperName}CreateInput`,
             ...this.config.createTypeConfig,
-            fields: () => ({
+            fields: () => mapperCreateTypeFields({
                 ...this.createFields,
                 ...this.associationsCreateFields,
                 ...thunkGet(this.config.createTypeConfig?.fields || {}),
                 ...thunkGet(this.config.associationsCreateFields || {}),
             })
-        }, true) as GraphQLInputObjectType;
+        }, GraphQLInputObjectType) as GraphQLInputObjectType;
     }
 
     get name() {
@@ -236,7 +276,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      * 查询单个数据
-     * @returns {Pick<GraphQLFieldConfig<TSource, TContext> & BaseHook<M, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<M, TSource, TArgs, TContext> & {name?: string} extends "after" | "resolve" | "before" ? never : keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<M, TSource, TArgs, TContext> & {name?: string}> & {resolve: GraphQLFieldResolver<TSource, TContext, TArgs>, type: GraphQLOutputType}}
+     * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<M | Promise<M | null>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<M | Promise<M | null>, TSource, TArgs, TContext> & {name?: string} extends ("after" | "resolve" | "before") ? never : keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<M | Promise<M | null>, TSource, TArgs, TContext> & {name?: string}> & {resolve: (source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo) => any}}
      */
     get getOne() {
         return this._getFieldConfig({
@@ -252,7 +292,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      * 获取列表数据
-     * @returns {Pick<GraphQLFieldConfig<TSource, TContext> & BaseHook<M[], TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<M[], TSource, TArgs, TContext> & {name?: string} extends "after" | "resolve" | "before" ? never : keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<M[], TSource, TArgs, TContext> & {name?: string}> & {resolve: GraphQLFieldResolver<TSource, TContext, TArgs>; type: GraphQLOutputType}}
+     * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<M[] | Promise<M[] | null>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<M[] | Promise<...[] | null>, TSource, TArgs, TContext> & {name?: string} extends ("after" | "resolve" | "before") ? never : keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<M[] | Promise<...[] | null>, TSource, TArgs, TContext> & {name?: string}> & {resolve: (source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo) => any}}
      */
     get getList() {
         return this._getFieldConfig({
@@ -268,7 +308,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      * 获取列表带分页数据
-     * @returns {Pick<GraphQLFieldConfig<TSource, TContext> & BaseHook<PageType<M>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<PageType<M>, TSource, TArgs, TContext> & {name?: string} extends "after" | "resolve" | "before" ? never : keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<PageType<M>, TSource, TArgs, TContext> & {name?: string}> & {resolve: GraphQLFieldResolver<TSource, TContext, TArgs>; type: GraphQLOutputType}}
+     * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<PageType<M> | Promise<PageType<M> | null>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<PageType<M> | Promise<... | null>, TSource, TArgs, TContext> & {name?: string} extends ("after" | "resolve" | "before") ? never : keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<PageType<M> | Promise<... | null>, TSource, TArgs, TContext> & {name?: string}> & {resolve: (source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo) => any}}
      */
     get getListPage() {
         return this._getFieldConfig({
@@ -284,7 +324,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      *  获取聚合数据
-     * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfig<TSource, TContext> & BaseHook<number, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<number, TSource, TArgs, TContext> & {name?: string} extends "after" | "resolve" | "before" ? never : keyof GraphQLFieldConfig<TSource, TContext> & BaseHook<number, TSource, TArgs, TContext> & {name?: string}> & {resolve: GraphQLFieldResolver<TSource, TContext, TArgs>}}
+     * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<number | Promise<number | null>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<number | Promise<number | null>, TSource, TArgs, TContext> & {name?: string} extends ("after" | "resolve" | "before") ? never : keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<number | Promise<number | null>, TSource, TArgs, TContext> & {name?: string}> & {resolve: (source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo) => any}}
      */
     get getAggregation() {
         return this._getFieldConfig({
@@ -380,7 +420,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      * 所有query的字段
-     * @returns {GraphQLFieldConfigMap<TSource, TContext>}
+     * @returns {{} | {[p: string]: {resolve(): {}, description: string, type: GraphQLObjectType<TSource, TContext>}}}
      */
     get queryFields(): GraphQLFieldConfigMap<TSource, TContext> {
         const {includeQuery = true, excludeQuery, queryFields} = this.config;
@@ -418,7 +458,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      * 所有mutation的字段
-     * @returns {GraphQLFieldConfigMap<TSource, TContext>}
+     * @returns {{} | {[p: string]: {resolve(): {}, description: string, type: GraphQLObjectType<TSource, TContext>}}}
      */
     get mutationFields(): GraphQLFieldConfigMap<TSource, TContext> {
         const {includeMutation = true, excludeMutation, mutationFields} = this.config;
@@ -482,7 +522,7 @@ export abstract class BaseAdapter<M, TSource,
 
     /**
      * 所有监听的字段
-     * @returns {GraphQLFieldConfigMap<TSource, TContext>}
+     * @returns {{} | {[p: string]: {subscribe: (rootValue?: any, args?: any, context?: any, info?: any) => AsyncIterator<any>, description: string, type: GraphQLObjectType<TSource, TContext>}}}
      */
     get subscriptionFields(): GraphQLFieldConfigMap<TSource, TContext> {
         const {includeSubscription = true, excludeSubscription, pubSub, filterSubscription, subscriptionFields} = this.config;

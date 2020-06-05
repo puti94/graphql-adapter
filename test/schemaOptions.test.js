@@ -1,5 +1,5 @@
-const {SequelizeAdapter, where, scope, limit, offset, order, aggregateFunction, Query, Mutation, Subscription, DateType, field, having, attributes, group} = require("../dist");
-const {GraphQLInt, GraphQLNonNull, GraphQLString} = require("graphql");
+const {SequelizeAdapter, where, scope, limit, offset, OrderSortEnum, aggregateFunction, Query, Mutation, Subscription, DateType, field, having, attributes, group} = require("../dist");
+const {GraphQLInt, GraphQLNonNull, GraphQLString, GraphQLList} = require("graphql");
 const assert = require("assert");
 const _ = require("lodash");
 const {Sequelize, DataTypes} = require("sequelize");
@@ -16,7 +16,9 @@ describe("#SequelizeSchema Options", () => {
     const adapter = new SequelizeAdapter(Model, {});
     assert.deepStrictEqual(adapter.aggregationArgs, {
       aggregateFunction,
-      field,
+      field: {
+        type: GraphQLNonNull(adapter.fieldEnumType)
+      },
       where,
     });
   });
@@ -35,23 +37,23 @@ describe("#SequelizeSchema Options", () => {
     const adapter = new SequelizeAdapter(Model);
     assert.deepStrictEqual(adapter.inputListArgs, {
       scope,
-      having,
-      attributes,
-      group,
       limit: {
         defaultValue: 20,
         ...limit
       },
       offset,
-      order,
+      order: {
+        "description": "sort",
+        type: GraphQLList(adapter.orderType)
+      },
       where
     });
   });
   it("modelFields", async function () {
     const adapter = new SequelizeAdapter(Model);
-    assert.deepStrictEqual(_.omit(adapter.modelFields, ["_count", "_avg"]), {
+    assert.deepStrictEqual(_.omit(adapter.modelFields), {
       id: {
-        type: new GraphQLNonNull(GraphQLInt)
+        type: GraphQLNonNull(GraphQLInt)
       },
       name: {
         type: GraphQLString
@@ -82,7 +84,7 @@ describe("#SequelizeSchema Options", () => {
         }
       }
     });
-    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["_count", "_avg", "id", "name", "hello"]);
+    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["id", "name", "hello"]);
   });
   it("createTypeConfig", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -122,7 +124,7 @@ describe("#SequelizeSchema Options", () => {
   });
   it("modelType", async function () {
     const adapter = new SequelizeAdapter(sequelize.define("test", {name: DataTypes.STRING}, {timestamps: false}));
-    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name", "_count", "_avg"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name"]));
   });
   it("queryFields", async function () {
     const adapter = new SequelizeAdapter(Model);

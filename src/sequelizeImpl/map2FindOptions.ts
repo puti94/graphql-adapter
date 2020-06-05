@@ -4,7 +4,7 @@ import {GraphQLResolveInfo} from "graphql";
 import {IInfoField, infoParser} from "../infoParse";
 import _ from "lodash";
 
-function getRealFields(info: GraphQLResolveInfo, isCountType: boolean): IInfoField[] {
+function getRealFields(info: GraphQLResolveInfo, isCountType?: boolean): IInfoField[] {
     const parse = infoParser(info);
     if (isCountType) {
         return parse.fields.find(({name}) => name === "rows")?.fields || [];
@@ -14,7 +14,7 @@ function getRealFields(info: GraphQLResolveInfo, isCountType: boolean): IInfoFie
 
 export default function map2FindOptions(model: ModelType, args: {
     [key: string]: any;
-}, info: GraphQLResolveInfo | IInfoField[], isCountType: boolean): FindOptions {
+}, info: GraphQLResolveInfo | IInfoField[], isCountType?: boolean): FindOptions {
     const attributes = Object.keys(model.rawAttributes);
     const result: FindOptions = argsToFindOptions(args, attributes);
     const fields = _.isArray(info) ? info : getRealFields(info, isCountType);
@@ -28,7 +28,7 @@ export default function map2FindOptions(model: ModelType, args: {
                     model: association.target,
                     separate: false,
                     as: field.name,
-                    ...map2FindOptions(association.target, field.args, field.fields, isCountType)
+                    ...map2FindOptions(association.target, field.args, field.fields)
                 };
             });
     }

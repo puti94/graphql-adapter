@@ -14,7 +14,7 @@ export default function argsToFindOptions(args: {
                     result.limit = parseInt(args[key], 10);
                 } else if (key === "offset") {
                     result.offset = parseInt(args[key], 10);
-                }  else if (key === "group") {
+                } else if (key === "group") {
                     result.group = args[key];
                 } else if (key === "where") {
                     result.where = Object.assign(replaceWhereOperators(args.where), result.where);
@@ -23,7 +23,8 @@ export default function argsToFindOptions(args: {
                 } else if (key === "attributes") {
                     result.attributes = Object.assign(replaceAttributes(args.attributes), result.attributes);
                 } else if (key === "order") {
-                    result.order = args["order"];
+                    const order = !_.isUndefined(args["order"]) ? (_.isArray(args["order"]) ? args["order"] : [args["order"]]) : [];
+                    result.order = (order as { name: string; sort?: string }[]).map(t => [t.name, t.sort || "asc"]);
                 } else if (targetAttributes.includes(key)) {
                     result.where = result.where || {};
                     // @ts-ignore

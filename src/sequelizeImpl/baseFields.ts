@@ -56,35 +56,28 @@ const limit = {
     description: "限制返回的数量",
     type: GraphQLInt,
 };
-const field = {
-    type: new GraphQLNonNull(GraphQLString),
-    description: "model single field name"
-};
 
 const group = {
     type: new GraphQLList(GraphQLString),
     description: "分组"
 };
 
-const order = {
-    description: `
-         takes an array of items to order the query
-         [
-           ['title', 'DESC'],
-           ['Task', 'createdAt', 'DESC'],
-         ]
-        `,
-    type: new GraphQLList(new GraphQLList(GraphQLString))
-};
+const OrderSortEnum = new GraphQLEnumType({
+    name: "SortType",
+    values: {
+        asc: {value: "asc"},
+        desc: {value: "desc"},
+    }
+});
+
 export {
     scope,
     limit,
-    order,
     offset,
     where,
-    field,
     group,
     having,
+    OrderSortEnum,
     attributes,
     aggregateFunction
 };

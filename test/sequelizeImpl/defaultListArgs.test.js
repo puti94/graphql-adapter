@@ -10,7 +10,7 @@ describe("#defaultListArgs", () => {
     limit: {...limit, defaultValue: 10},
     scope,
     where,
-    order, offset, group, attributes, having
+    order, offset,
   };
   
   it("no options", function () {

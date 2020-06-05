@@ -10,6 +10,8 @@ import {
 
 import {PubSub} from "graphql-subscriptions";
 import Maybe from "graphql/tsutils/Maybe";
+import {GraphQLInputFieldConfigMap} from "graphql/type/definition";
+
 
 /**
  * 查询的类型
@@ -219,6 +221,21 @@ export type BaseConfig<M, TSource, TArgs, TContext> =
          * 增删改三个事件的通用过滤器，优先拦截
          */
         filterSubscription?: FilterFn<M, TArgs, TContext>;
+        /**
+         * 映射模型字段
+         * @param fields
+         */
+        mapperModelFields?: (fields: GraphQLFieldConfigMap<any, any>) => GraphQLFieldConfigMap<any, any>;
+        /**
+         * 映射创建参数字段
+         * @param fields
+         */
+        mapperCreateTypeFields?: (fields: GraphQLInputFieldConfigMap) => GraphQLInputFieldConfigMap;
+        /**
+         * 映射更新参数字段
+         * @param fields
+         */
+        mapperUpdateTypeFields?: (fields: GraphQLInputFieldConfigMap) => GraphQLInputFieldConfigMap;
     }
 
 export interface BaseAdapterInterface<M, TSource, TContext extends Record<string, any>, TArgs> extends BaseQuery<M, TSource, TArgs, TContext>,

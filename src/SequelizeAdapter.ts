@@ -1,8 +1,8 @@
 import {BaseAdapter, PageType, BaseConfig} from "./BaseAdapter";
 import {
     GraphQLFieldConfigArgumentMap,
-    GraphQLFieldConfigMap, GraphQLFloat, GraphQLInt,
-    GraphQLList,
+    GraphQLFieldConfigMap,
+    GraphQLList, GraphQLNonNull,
     GraphQLResolveInfo,
 } from "graphql";
 import {
@@ -15,7 +15,7 @@ import {getName} from "./utils";
 import {NotFoundError} from "./error";
 import {attributeFields, defaultArgs, defaultListArgs, resolver} from "./sequelizeImpl";
 import {AssociationType} from "./sequelizeImpl/resolver";
-import {field, where, aggregateFunction, replaceWhereOperators} from "./sequelizeImpl";
+import {where, aggregateFunction, replaceWhereOperators} from "./sequelizeImpl";
 import _ from "lodash";
 
 export type SequelizeArgs = {
@@ -69,7 +69,8 @@ function _getHandlerFindOptionsFn(config: SequelizeAdapterConfig<any, any, any>,
 
 function _getHandlerAggregateOptions(config: SequelizeAdapterConfig<any, any, any>, action: string, args: SequelizeArgs, context: any, info: GraphQLResolveInfo): AggregateOptions<any> | Promise<AggregateOptions<any>> {
     const options: AggregateOptions<any> = {
-        where: replaceWhereOperators(args.where || {})
+        where: replaceWhereOperators(args.where || {}),
+        dataType: "float"
     };
     if (_.isFunction(config.handlerAggregateOptions)) return Promise.resolve(config.handlerAggregateOptions(action, options, args, context, info));
     return options;
@@ -86,15 +87,6 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     modelFields: GraphQLFieldConfigMap<TSource, TContext>;
 
     constructor(model: ModelCtor<M>, config: SequelizeAdapterConfig<M, TSource, TContext> = {}) {
-        const modelFields = attributeFields(model);
-        const inputArgs = defaultArgs(model);
-        const createFields = attributeFields(model, {filterAutomatic: true, isInput: true});
-        const updateFields = (function () {
-            const fields = {...createFields};
-            delete fields[model.primaryKeyAttribute];
-            return fields;
-        })();
-        const inputListArgs = defaultListArgs({defaultLimit: config.defaultLimit || 20});
         super({
             name: getName(model),
             primaryKey: getPrimaryKey(model),
@@ -102,48 +94,29 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             ...config
         });
         this.model = model;
-        this.modelFields = {
-            _count: {
-                type: GraphQLInt,
-                resolve: ((source: M) => {
-                    // @ts-ignore
-                    const value = source["_count"];
-                    if (!_.isUndefined(value)) {
-                        // @ts-ignore
-                        return value;
-                    } else if (_.isFunction(source?.getDataValue)) {
-                        // @ts-ignore
-                        return source?.getDataValue("_count");
-                    }
-                    return null;
-                })
-            },
-            _avg: {
-                type: GraphQLFloat,
-                resolve: ((source: M) => {
-                    // @ts-ignore
-                    const value = source["_avg"];
-                    if (!_.isUndefined(value)) {
-                        // @ts-ignore
-                        return value;
-                    } else if (_.isFunction(source?.getDataValue)) {
-                        // @ts-ignore
-                        return source?.getDataValue("_avg");
-                    }
-                    return null;
-                })
-            },
-            ...modelFields
-        };
+        const createFields = attributeFields(model, {filterAutomatic: true, isInput: true});
+        const updateFields = (function () {
+            const fields = {...createFields};
+            delete fields[model.primaryKeyAttribute];
+            return fields;
+        })();
+        this.modelFields = attributeFields(model);
         this.createFields = createFields;
         this.updateFields = updateFields;
-        this.inputArgs = inputArgs;
-        this.inputListArgs = inputListArgs;
+        this.inputArgs = defaultArgs(model);
+        this.inputListArgs = defaultListArgs({
+            defaultLimit: config.defaultLimit || 20,
+            order: {
+                description: "sort",
+                type: new GraphQLList(this.orderType)
+            }
+        });
         this.aggregationArgs = {
             aggregateFunction,
-            field,
+            field: {
+                type: new GraphQLNonNull(this.fieldEnumType)
+            },
             where,
-
         };
         this._initialHooks();
     }
@@ -242,7 +215,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     }
 
     async createResolve(source: TSource, {data}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo): Promise<M> {
-        return await this.model.create<M>(data, {include: Object.keys(this.model.associations)});
+        return this.model.create<M>(data, {include: Object.keys(this.model.associations)});
     }
 
 
@@ -291,8 +264,8 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         }
     }
 
-    async getAggregateResolve(source: TSource, {field, scope, aggregateFunction, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
-        const number = await this.model.aggregate(field, aggregateFunction, await Promise.resolve(_getHandlerAggregateOptions(this.config, aggregateFunction, args, context, info)));
+    async getAggregateResolve(source: TSource, {field, aggregateFunction, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
+        const number = await this.model.aggregate(field, aggregateFunction, await _getHandlerAggregateOptions(this.config, aggregateFunction, args, context, info));
         return isNaN(number) ? null : number;
     }
 

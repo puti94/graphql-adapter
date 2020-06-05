@@ -15,11 +15,11 @@ describe("#argsToFindOptions", () => {
           _gt: 6
         }
       },
-      order: [["createdAt", "DESC"]]
+      order: [{name: "createdAt", sort: "desc"}]
     }, ["id", "title"]), {
       limit: 10,
       offset: 10,
-      order: [["createdAt", "DESC"]],
+      order: [["createdAt", "desc"]],
       where: {
         id: "21",
         title: "title",
