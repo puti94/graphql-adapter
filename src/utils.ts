@@ -4,7 +4,7 @@ import {
     GraphQLFieldConfigMap,
     GraphQLSchema, GraphQLObjectType
 } from "graphql";
-import {Model, ModelCtor, ModelType} from "sequelize";
+import {ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
 
@@ -21,18 +21,18 @@ function map2NullableType(fields: GraphQLFieldConfigArgumentMap): GraphQLFieldCo
     return args;
 }
 
-type GenerateAdapterConfig = SequelizeAdapterConfig<any, any, any> & {
-    customQuery?: ((adapters: AdapterMaps) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-    customMutation?: ((adapters: AdapterMaps) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-    customSubscription?: ((adapters: AdapterMaps) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-    configMap?: { [key: string]: SequelizeAdapterConfig<any, any, any> };
+type GenerateAdapterConfig<T> = SequelizeAdapterConfig<any, any, any> & {
+    customQuery?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+    customMutation?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+    customSubscription?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+    configMap?: { [key in keyof T]?: SequelizeAdapterConfig<any, any, any> };
     includeMutation?: boolean;
     includeSubscription?: boolean;
 }
 
-type AdapterMaps = { [key: string]: SequelizeAdapter<any, any, any> }
+type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
 
-function thunkGet(value: ((adapters: AdapterMaps) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>, adapters: AdapterMaps): GraphQLFieldConfigMap<any, any> {
+function thunkGet<T>(value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>, adapters: AdapterMaps<T>): GraphQLFieldConfigMap<any, any> {
     if (_.isFunction(value)) return value(adapters);
     return value;
 }
@@ -43,7 +43,7 @@ function thunkGet(value: ((adapters: AdapterMaps) => GraphQLFieldConfigMap<any, 
  * @param options
  * @returns {GraphQLSchema}
  */
-function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: GenerateAdapterConfig = {}): GraphQLSchema {
+function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, options: GenerateAdapterConfig<T> = {}): GraphQLSchema {
     const {
         customQuery = {},
         customMutation = {},
@@ -53,17 +53,20 @@ function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: Ge
         configMap = {},
         ...commonModelConfig
     } = options;
+    // @ts-ignore
     const {query, mutation, subscription, adapters} = Object.keys(models).reduce<{
         query: GraphQLFieldConfigMap<any, any>;
         mutation: GraphQLFieldConfigMap<any, any>;
         subscription: GraphQLFieldConfigMap<any, any>;
-        adapters: AdapterMaps;
+        adapters: AdapterMaps<T>;
     }>((obj, key) => {
         const model = models[key];
+        // @ts-ignore
         const modelSchema = new SequelizeAdapter(model, {...commonModelConfig, ...(configMap[key] || {})});
         Object.assign(obj.query, modelSchema.queryFields);
         Object.assign(obj.mutation, modelSchema.mutationFields);
         Object.assign(obj.subscription, modelSchema.subscriptionFields);
+        // @ts-ignore
         obj.adapters[key] = modelSchema;
         return obj;
     }, {query: {}, mutation: {}, subscription: {}, adapters: {}});
@@ -96,6 +99,7 @@ function generateSchema(models: { [key: string]: ModelCtor<Model> }, options: Ge
         }) : null
     });
 }
+
 
 export {
     getName,
