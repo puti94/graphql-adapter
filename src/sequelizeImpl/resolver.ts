@@ -60,7 +60,7 @@ export default function resolver<M extends Model, TSource, TArgs, TContext>(targ
     return async function (source: any, args: any, context: any, info: GraphQLResolveInfo) {
         const {before = (options: any) => options, resolve} = options;
         const target = _.isFunction(targetMaybeThunk) && !checkIsModel(targetMaybeThunk) ?
-            await Promise.resolve((targetMaybeThunk as FunctionModelType)(source, args, context, info)) : targetMaybeThunk;
+            await (targetMaybeThunk as FunctionModelType)(source, args, context, info) : targetMaybeThunk;
         const isModel = checkIsModel(target);
         const isAssociation = checkIsAssociation(target);
         const model: ModelCtor<M> = (isAssociation && (target as AssociationType).target || isModel && target) as ModelCtor<M>;
@@ -68,7 +68,6 @@ export default function resolver<M extends Model, TSource, TArgs, TContext>(targ
         let findOptions = map2FindOptions(model, args, info, options.isCountType);
 
         context = context || {};
-        // findOptions.attributes = targetAttributes;
         findOptions = await Promise.resolve(before(findOptions, args, context, info));
 
         if (args.where && !_.isEmpty(info.variableValues)) {
