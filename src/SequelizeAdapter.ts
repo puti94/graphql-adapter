@@ -103,7 +103,13 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         this.modelFields = attributeFields(model);
         this.createFields = createFields;
         this.updateFields = updateFields;
-        this.inputArgs = defaultArgs(model);
+        this.inputArgs = {
+            ...defaultArgs(model),
+            order: {
+                description: "sort",
+                type: new GraphQLList(this.orderType)
+            }
+        };
         this.inputListArgs = defaultListArgs({
             defaultLimit: config.defaultLimit || 20,
             order: {

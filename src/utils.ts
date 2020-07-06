@@ -2,15 +2,11 @@ import {
     getNullableType,
     GraphQLFieldConfigArgumentMap,
     GraphQLFieldConfigMap,
-    GraphQLSchema, GraphQLObjectType, GraphQLSchemaConfig
+    GraphQLSchema, GraphQLObjectType, GraphQLSchemaConfig, GraphQLObjectTypeConfig
 } from "graphql";
 import {ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
-import Maybe from "graphql/tsutils/Maybe";
-import {GraphQLNamedType} from "graphql/type/definition";
-import {GraphQLDirective} from "graphql/type/directives";
-import {SchemaDefinitionNode, SchemaExtensionNode} from "graphql/language/ast";
 
 function getName(model: ModelType) {
     return model.name;
@@ -42,6 +38,18 @@ type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
 function thunkGet<T>(value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>, adapters: AdapterMaps<T>): GraphQLFieldConfigMap<any, any> {
     if (_.isFunction(value)) return value(adapters);
     return value;
+}
+
+function generateType<T>(include: boolean, value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>,
+                         adapters: AdapterMaps<T>, fields: GraphQLFieldConfigMap<any, any>, config: GraphQLObjectTypeConfig<any, any>): GraphQLObjectType | null {
+    if (!include && (!_.isFunction(value) && _.isEmpty(value)) || (_.isFunction(value) && _.isEmpty(thunkGet(value, adapters)))) return null;
+    return new GraphQLObjectType({
+        ...config,
+        fields: () => ({
+            ...(include ? fields : {}),
+            ...thunkGet(value, adapters)
+        })
+    });
 }
 
 /**
@@ -86,27 +94,20 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
                 ...thunkGet(customQuery, adapters)
             })
         }),
-        mutation: includeMutation || !_.isEmpty(customMutation) ? new GraphQLObjectType({
+        mutation: generateType(includeMutation, customMutation, adapters, mutation, {
             name: "Mutation",
             description: "Base Mutation",
-            fields: () => ({
-                ...(includeMutation ? mutation : {}),
-                ...thunkGet(customMutation, adapters)
-            })
-        }) : null,
-        subscription: includeSubscription || !_.isEmpty(customSubscription) ? new GraphQLObjectType({
+            fields: {}
+        }),
+        subscription: generateType(includeSubscription, customSubscription, adapters, subscription, {
             name: "Subscription",
             description: "Base Subscription",
-            fields: () => (
-                {
-                    ...(includeSubscription ? subscription : {}),
-                    ...thunkGet(customSubscription, adapters)
-                }
-            )
-        }) : null,
+            fields: {}
+        }),
         ...(_.pick(commonModelConfig, ["description", "query", "mutation", "subscription", "types", "directives", "extensions", "astNode", "extensionASTNodes", "assumeValid"]))
     });
 }
+
 
 export {
     getName,

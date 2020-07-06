@@ -27,6 +27,10 @@ describe("#SequelizeSchema Options", () => {
     assert.deepStrictEqual(adapter.inputArgs, {
       scope,
       where,
+      order: {
+        "description": "sort",
+        type: GraphQLList(adapter.orderType)
+      },
       id: {
         type: GraphQLInt,
         description: "主键"
