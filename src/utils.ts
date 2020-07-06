@@ -2,11 +2,15 @@ import {
     getNullableType,
     GraphQLFieldConfigArgumentMap,
     GraphQLFieldConfigMap,
-    GraphQLSchema, GraphQLObjectType
+    GraphQLSchema, GraphQLObjectType, GraphQLSchemaConfig
 } from "graphql";
 import {ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
+import Maybe from "graphql/tsutils/Maybe";
+import {GraphQLNamedType} from "graphql/type/definition";
+import {GraphQLDirective} from "graphql/type/directives";
+import {SchemaDefinitionNode, SchemaExtensionNode} from "graphql/language/ast";
 
 function getName(model: ModelType) {
     return model.name;
@@ -21,14 +25,17 @@ function map2NullableType(fields: GraphQLFieldConfigArgumentMap): GraphQLFieldCo
     return args;
 }
 
-type GenerateAdapterConfig<T> = SequelizeAdapterConfig<any, any, any> & {
-    customQuery?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-    customMutation?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-    customSubscription?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-    configMap?: { [key in keyof T]?: SequelizeAdapterConfig<any, any, any> };
-    includeMutation?: boolean;
-    includeSubscription?: boolean;
-}
+type GenerateAdapterConfig<T> =
+    SequelizeAdapterConfig<any, any, any> &
+    Partial<GraphQLSchemaConfig> &
+    {
+        customQuery?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+        customMutation?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+        customSubscription?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+        configMap?: { [key in keyof T]?: SequelizeAdapterConfig<any, any, any> };
+        includeMutation?: boolean;
+        includeSubscription?: boolean;
+    }
 
 type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
 
@@ -96,10 +103,10 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
                     ...thunkGet(customSubscription, adapters)
                 }
             )
-        }) : null
+        }) : null,
+        ...(_.pick(commonModelConfig, ["description", "query", "mutation", "subscription", "types", "directives", "extensions", "astNode", "extensionASTNodes", "assumeValid"]))
     });
 }
-
 
 export {
     getName,
