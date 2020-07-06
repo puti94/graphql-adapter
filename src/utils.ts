@@ -86,7 +86,7 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
                 ...thunkGet(customQuery, adapters)
             })
         }),
-        mutation: includeMutation ? new GraphQLObjectType({
+        mutation: includeMutation && _.isEmpty(customMutation)  ? new GraphQLObjectType({
             name: "Mutation",
             description: "Base Mutation",
             fields: () => ({
@@ -94,7 +94,7 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
                 ...thunkGet(customMutation, adapters)
             })
         }) : null,
-        subscription: includeSubscription ? new GraphQLObjectType({
+        subscription: includeSubscription && _.isEmpty(customSubscription) ? new GraphQLObjectType({
             name: "Subscription",
             description: "Base Subscription",
             fields: () => (
