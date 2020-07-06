@@ -86,20 +86,20 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
                 ...thunkGet(customQuery, adapters)
             })
         }),
-        mutation: includeMutation && _.isEmpty(customMutation)  ? new GraphQLObjectType({
+        mutation: includeMutation || !_.isEmpty(customMutation) ? new GraphQLObjectType({
             name: "Mutation",
             description: "Base Mutation",
             fields: () => ({
-                ...mutation,
+                ...(includeMutation ? mutation : {}),
                 ...thunkGet(customMutation, adapters)
             })
         }) : null,
-        subscription: includeSubscription && _.isEmpty(customSubscription) ? new GraphQLObjectType({
+        subscription: includeSubscription || !_.isEmpty(customSubscription) ? new GraphQLObjectType({
             name: "Subscription",
             description: "Base Subscription",
             fields: () => (
                 {
-                    ...subscription,
+                    ...(includeSubscription ? subscription : {}),
                     ...thunkGet(customSubscription, adapters)
                 }
             )
