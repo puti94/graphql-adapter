@@ -36,7 +36,6 @@ export default function map2FindOptions(model: ModelType, args: {
                 const association = model.associations[field.name];
                 return {
                     model: association.target,
-                    separate: false,
                     as: field.name,
                     ...map2FindOptions(association.target, field.args, field.fields)
                 };
