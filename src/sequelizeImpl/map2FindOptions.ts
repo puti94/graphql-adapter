@@ -1,4 +1,5 @@
 import argsToFindOptions from "./argsToFindOptions";
+import argsToIncludeOptions from "./argsToIncludeOptions";
 import {FindOptions, ModelType} from "sequelize";
 import {GraphQLResolveInfo} from "graphql";
 import {IInfoField, infoParser} from "../infoParse";
@@ -14,9 +15,9 @@ function getRealFields(info: GraphQLResolveInfo, isCountType?: boolean): IInfoFi
 
 export default function map2FindOptions(model: ModelType, args: {
     [key: string]: any;
-}, info: GraphQLResolveInfo | IInfoField[], isCountType?: boolean): FindOptions {
+}, info: GraphQLResolveInfo | IInfoField[], isCountType?: boolean, isInclude?: boolean): FindOptions {
     const attributes = Object.keys(model.rawAttributes);
-    const result: FindOptions = argsToFindOptions(args, attributes);
+    const result: FindOptions = isInclude ? argsToIncludeOptions(args, attributes) : argsToFindOptions(args, attributes);
     const fields = _.isArray(info) ? info : getRealFields(info, isCountType);
     const associationFields = fields?.filter(t => !_.isEmpty(t.fields) && !_.isEmpty(model.associations[t.name]));
     const attributeFields = fields?.filter(t => attributes.includes(t.name));
@@ -36,8 +37,10 @@ export default function map2FindOptions(model: ModelType, args: {
                 const association = model.associations[field.name];
                 return {
                     model: association.target,
+                    right: true,
+                    separate: association.associationType === "HasMany",
                     as: field.name,
-                    ...map2FindOptions(association.target, field.args, field.fields)
+                    ...map2FindOptions(association.target, field.args, field.fields, false, true)
                 };
             });
     }

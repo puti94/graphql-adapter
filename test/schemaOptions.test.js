@@ -1,4 +1,4 @@
-const {SequelizeAdapter, where, scope, limit, offset, OrderSortEnum, aggregateFunction, Query, Mutation, Subscription, DateType, field, having, attributes, group} = require("../dist");
+const {SequelizeAdapter, where, scope, limit, offset, subQuery, OrderSortEnum, aggregateFunction, Query, Mutation, Subscription, DateType, field, having, attributes, group} = require("../dist");
 const {GraphQLInt, GraphQLNonNull, GraphQLString, GraphQLList} = require("graphql");
 const assert = require("assert");
 const _ = require("lodash");
@@ -41,6 +41,7 @@ describe("#SequelizeSchema Options", () => {
     const adapter = new SequelizeAdapter(Model);
     assert.deepStrictEqual(adapter.inputListArgs, {
       scope,
+      subQuery,
       limit: {
         defaultValue: 20,
         ...limit

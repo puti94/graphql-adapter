@@ -1,4 +1,4 @@
-import {GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLString, GraphQLEnumType} from "graphql";
+import {GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLString, GraphQLEnumType, GraphQLBoolean} from "graphql";
 import JSONType from "./types/jsonType";
 
 const where = {
@@ -61,6 +61,34 @@ const group = {
     type: new GraphQLList(GraphQLString),
     description: "分组"
 };
+const subQuery = {
+    type: GraphQLBoolean,
+    description: "Use sub queries. This should only be used if you know for sure the query does not result in a cartesian product."
+};
+const includeFields = {
+    right: {
+        type: GraphQLBoolean,
+        description: "If true, converts to a right join if dialect support it. Ignored if `include.required` is true."
+    },
+    required: {
+        type: GraphQLBoolean,
+        description: "If true, converts to an inner join, which means that the parent model will only be loaded if it has any * matching children. True if `include.where` is set, false otherwise."
+    },
+    separate: {
+        type: GraphQLBoolean,
+        description: "Run include in separate queries."
+    },
+
+    duplicating: {
+        type: GraphQLBoolean,
+        description: "Mark the include as duplicating, will prevent a subQuery from being used."
+    },
+    on: {
+        type: JSONType,
+        description: "Custom `on` clause, overrides default."
+    }
+};
+
 
 const OrderSortEnum = new GraphQLEnumType({
     name: "SortType",
@@ -79,5 +107,7 @@ export {
     having,
     OrderSortEnum,
     attributes,
-    aggregateFunction
+    aggregateFunction,
+    includeFields,
+    subQuery
 };

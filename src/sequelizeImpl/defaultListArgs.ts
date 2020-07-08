@@ -1,5 +1,5 @@
 import {GraphQLInputFieldConfig, GraphQLInputFieldConfigMap} from "graphql";
-import {scope, limit, where, offset} from "./baseFields";
+import {scope, limit, where, offset, subQuery} from "./baseFields";
 
 export function defaultListArgs(options: {
     defaultLimit?: number;
@@ -13,6 +13,7 @@ export function defaultListArgs(options: {
         },
         where,
         offset,
+        subQuery,
         order: options.order
     };
 }

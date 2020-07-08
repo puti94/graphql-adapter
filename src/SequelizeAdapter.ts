@@ -13,7 +13,7 @@ import {
 } from "sequelize";
 import {getName} from "./utils";
 import {NotFoundError} from "./error";
-import {attributeFields, defaultArgs, defaultListArgs, resolver} from "./sequelizeImpl";
+import {attributeFields, defaultArgs, defaultListArgs, resolver, includeFields} from "./sequelizeImpl";
 import {AssociationType} from "./sequelizeImpl/resolver";
 import {where, aggregateFunction, replaceWhereOperators} from "./sequelizeImpl";
 import _ from "lodash";
@@ -164,7 +164,10 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             const isList = ["BelongsToMany", "HasMany"].includes(association.associationType);
             fields[association.as] = {
                 type: isList ? new GraphQLList(type) : type,
-                args: isList ? _.omit(modelSchema.inputListArgs, ["scope", "offset", "having"]) : undefined
+                args: isList ? {
+                    ..._.omit(modelSchema.inputListArgs, ["scope", "offset", "having"]),
+                    ..._.omit(includeFields, association.associationType === "HasMany" ? [] : ["separate"])
+                } : undefined
             };
             return fields;
         }, {});

@@ -1,27 +1,27 @@
 import {replaceWhereOperators} from "./replaceWhereOperators";
 import {replaceAttributes} from "./replaceAttributes";
-import {FindOptions} from "sequelize";
+import {IncludeOptions} from "sequelize";
 import _ from "lodash";
 
-export default function argsToFindOptions(args: {
+export default function argsToIncludeOptions(args: {
     [key: string]: any;
 }, targetAttributes: string[]) {
-    const result: FindOptions = {};
+    const result: IncludeOptions = {};
     if (args) {
         Object.keys(args).forEach(function (key) {
             if (!_.isUndefined(args[key])) {
                 if (key === "limit") {
                     result.limit = parseInt(args[key], 10);
-                } else if (key === "offset") {
-                    result.offset = parseInt(args[key], 10);
-                } else if (key === "group") {
-                    result.group = args[key];
+                } else if (key === "required") {
+                    result.required = args[key];
+                } else if (key === "right") {
+                    result.right = args[key];
+                } else if (key === "separate") {
+                    result.separate = args[key];
                 } else if (key === "subQuery") {
                     result.subQuery = args[key];
                 } else if (key === "where") {
                     result.where = Object.assign(replaceWhereOperators(args.where), result.where);
-                } else if (key === "having") {
-                    result.having = Object.assign(replaceWhereOperators(args.having), result.having);
                 } else if (key === "attributes") {
                     result.attributes = Object.assign(replaceAttributes(args.attributes), result.attributes);
                 } else if (key === "order") {
