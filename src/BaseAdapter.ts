@@ -150,6 +150,7 @@ export abstract class BaseAdapter<M, TSource,
         }) as GraphQLObjectType;
     }
 
+
     /**
      * 模型字段枚举
      * @returns {GraphQLObjectType}
@@ -160,7 +161,7 @@ export abstract class BaseAdapter<M, TSource,
             values: Object.keys(this.modelFields).reduce<GraphQLEnumValueConfigMap>((memo, key) => {
                 memo[key] = {value: key, description: this.modelFields[key].description};
                 return memo;
-            }, {})
+            }, {"_all": {value: "*", description: "all"}})
         }, GraphQLEnumType) as GraphQLEnumType;
     }
 

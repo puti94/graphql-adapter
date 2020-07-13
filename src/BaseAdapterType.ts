@@ -132,6 +132,7 @@ export interface BaseInputType {
 export interface BaseInputTypeConfig {
     createTypeConfig?: GraphQLInputObjectTypeConfig;
     updateTypeConfig?: GraphQLInputObjectTypeConfig;
+    filterTypeConfig?: GraphQLInputObjectTypeConfig;
 }
 
 export type FilterActions<T> = T[] | ((key: T) => boolean);
