@@ -13,9 +13,18 @@ import {
 } from "sequelize";
 import {getName} from "./utils";
 import {NotFoundError} from "./error";
-import {attributeFields, defaultArgs, defaultListArgs, resolver, includeFields} from "./sequelizeImpl";
+import {
+    attributeFields,
+    defaultArgs,
+    defaultListArgs,
+    resolver,
+    includeFields,
+    where,
+    aggregateFunction,
+    replaceWhereOperators
+} from "./sequelizeImpl";
 import {AssociationType} from "./sequelizeImpl/resolver";
-import {where, aggregateFunction, replaceWhereOperators} from "./sequelizeImpl";
+
 import _ from "lodash";
 
 export type SequelizeArgs = {
@@ -167,7 +176,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
                 args: isList ? {
                     ..._.omit(modelSchema.inputListArgs, ["scope", "offset", "having"]),
                     ..._.omit(includeFields, association.associationType === "HasMany" ? [] : ["separate"])
-                } : undefined
+                } : _.omit(includeFields, ["separate"])
             };
             return fields;
         }, {});
