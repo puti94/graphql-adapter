@@ -2,11 +2,18 @@ import {
     getNullableType,
     GraphQLFieldConfigArgumentMap,
     GraphQLFieldConfigMap,
-    GraphQLSchema, GraphQLObjectType, GraphQLSchemaConfig, GraphQLObjectTypeConfig
+    GraphQLSchema,
+    GraphQLObjectType,
+    GraphQLSchemaConfig,
+    GraphQLObjectTypeConfig,
+    GraphQLList,
+    GraphQLNonNull,
+    GraphQLEnumType
 } from "graphql";
 import {ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
+import {MetaDataType, getMetaDataList, getMetaData} from "./metadata";
 
 function getName(model: ModelType) {
     return model.name;
@@ -31,6 +38,7 @@ type GenerateAdapterConfig<T> =
         configMap?: { [key in keyof T]?: SequelizeAdapterConfig<any, any, any> };
         includeMutation?: boolean;
         includeSubscription?: boolean;
+        withMetadata?: boolean;
     }
 
 type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
@@ -65,6 +73,7 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
         customSubscription = {},
         includeMutation = true,
         includeSubscription = true,
+        withMetadata = true,
         configMap = {},
         ...commonModelConfig
     } = options;
@@ -90,6 +99,33 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
             name: "Query",
             description: "Base Query",
             fields: () => ({
+                ..._.omit({
+                    gqlMetadataList: {
+                        type: new GraphQLList(MetaDataType),
+                        resolve: () => {
+                            return getMetaDataList(adapters);
+                        }
+                    },
+                    gqlMetadata: {
+                        type: MetaDataType,
+                        args: {
+                            name: {
+                                type: new GraphQLNonNull(new GraphQLEnumType({
+                                    name: "AdapterEnum",
+                                    values: Object.keys(adapters).reduce<any>((memo, key) => {
+                                        const name = adapters[key].name;
+                                        memo[name] = {value: key};
+                                        return memo;
+                                    }, {})
+                                })),
+                                description: "模型"
+                            }
+                        },
+                        resolve: (source, {name}) => {
+                            return getMetaData(adapters[name]);
+                        }
+                    },
+                }, withMetadata ? [] : ["gqlMetadata", "gqlMetadataList"]),
                 ...query,
                 ...thunkGet(customQuery, adapters)
             })

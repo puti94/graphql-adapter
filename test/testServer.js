@@ -10,6 +10,7 @@ sequelize.sync();
 const server = new ApolloServer({
   schema: generateSchema(models, {
     pubSub: new PubSub(),
+    withMetadata: false,
     handlerFindOptions: ((action, options) => {
       return {
         ...options,
@@ -30,7 +31,7 @@ const server = new ApolloServer({
         type: GraphQLBoolean,
         args: {
           path: {
-            type:  GraphQLNonNull(GraphQLString),
+            type: GraphQLNonNull(GraphQLString),
             description: "路径"
           },
         },
