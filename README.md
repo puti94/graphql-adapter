@@ -88,10 +88,10 @@ httpServer.listen(PORT, () => {
 ```
 ## 实现接口
 ### query(查询)
-- get(查找单个)
-- getList(查找列表)
-- getListPage(查找列表带总量)
-- getAggregation(聚合接口 min | max | sum)    
+- one(查找单个)
+- list(查找列表)
+- listPage(查找列表带总量)
+- aggregation(聚合接口 min | max | sum | count)    
 
 ![image text](./img/query.png)
 ### mutation(异变)
