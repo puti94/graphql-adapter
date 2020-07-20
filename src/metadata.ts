@@ -10,9 +10,9 @@ import {
     isNullableType,
     isListType, GraphQLInputObjectType
 } from "graphql";
-
+import * as _ from "lodash";
 import {AbstractDataType} from "sequelize";
-import { SequelizeAdapter } from "./SequelizeAdapter";
+import {SequelizeAdapter} from "./SequelizeAdapter";
 import {DateType} from "./sequelizeImpl/types";
 
 const FieldMetaDataType = new GraphQLObjectType({
@@ -20,10 +20,14 @@ const FieldMetaDataType = new GraphQLObjectType({
     description: "字段描述",
     fields: {
         type: {
-            description: "数据类型",
+            description: "gql数据类型",
             type: GraphQLNonNull(GraphQLString)
         },
-        field: {
+        dataType: {
+            description: "sequelize定义类型",
+            type: GraphQLString
+        },
+        name: {
             description: "字段键值",
             type: GraphQLNonNull(GraphQLString)
         },
@@ -34,6 +38,10 @@ const FieldMetaDataType = new GraphQLObjectType({
         isList: {
             description: "是否列表",
             type: GraphQLNonNull(GraphQLBoolean)
+        },
+        isPk: {
+            description: "是否主键",
+            type: GraphQLBoolean
         },
         description: {
             description: "字段描述",
@@ -135,10 +143,12 @@ export const MetaDataType = new GraphQLObjectType({
 
 type FieldMetaData = {
     type: string;
-    field: string;
+    dataType?: string;
+    name: string;
     description: string;
     title: string;
     allowNull: boolean;
+    isPk?: boolean;
     isList: boolean;
     enable?: boolean;
     sortable?: boolean;
@@ -181,11 +191,14 @@ function getTypeFieldsMetadata(type: GraphQLObjectType | GraphQLInputObjectType,
     const fields = type.getFields();
     return Object.keys(fields).map<FieldMetaData>(key => {
         const field = fields[key];
+        const attribute = adapter.model.rawAttributes[key];
         return {
             type: getNamedType(field.type).toString(),
+            dataType: attribute ? (_.isString(attribute.type) ? attribute.type : attribute.type.key) : undefined,
+            isPk: attribute ? Boolean(attribute.primaryKey) : undefined,
             isList: isListType(field.type),
             allowNull: isNullableType(field.type),
-            field: key,
+            name: key,
             description: field.description,
             title: field.description || key,
             sortable: getSortable(key, adapter),

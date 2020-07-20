@@ -10,7 +10,7 @@ sequelize.sync();
 const server = new ApolloServer({
   schema: generateSchema(models, {
     pubSub: new PubSub(),
-    withMetadata: false,
+    withMetadata: true,
     handlerFindOptions: ((action, options) => {
       return {
         ...options,
