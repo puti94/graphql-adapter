@@ -1,11 +1,10 @@
-const path = require("path");
+
 module.exports = function getModels(sequelize) {
   const models = {
-    Account: sequelize.import(path.join(__dirname, "./account")),
-    Project: sequelize.import(path.join(__dirname, "./project")),
-    Task: sequelize.import(path.join(__dirname, "./task")),
-    // UserTask: sequelize.import(path.join(__dirname, "./user-task")),
-    User: sequelize.import(path.join(__dirname, "./user"))
+    Account: require("./account")(sequelize),
+    Project: require("./project")(sequelize),
+    Task: require("./task")(sequelize),
+    User: require("./user")(sequelize)
   };
   
   Object.keys(models).forEach(function (modelName) {

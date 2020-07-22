@@ -35,12 +35,6 @@ describe("#SequelizeSchema", function () {
       assert.deepStrictEqual(_.cloneDeep(response), expected);
     });
     
-    it("查询列表带数量", async function () {
-      const response = await graphql(schema, "{Account{ listPage{count,rows{uuid,age}}}}");
-      const expected = {data: {Account: {listPage: {count: 1, rows: [{uuid: id, age: 18}]}}}};
-      assert.deepStrictEqual(_.cloneDeep(response), expected);
-    });
-    
     it("更新单个数据", async function () {
       const response = await graphql(schema, `mutation{Account{ update(data:{age:20},uuid:"${id}"){age}}}`);
       const expected = {

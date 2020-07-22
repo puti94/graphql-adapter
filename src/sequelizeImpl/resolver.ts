@@ -44,8 +44,7 @@ function checkIsAssociation(target: TargetType) {
 
 type ResolverOptions = {
     before?: (options: FindOptions, args: any, context: any, info: any) => FindOptions | Promise<FindOptions>;
-    resolve: (options: FindOptions, source: any, args: any, context: any, info: any) => any;
-    isCountType?: boolean;
+    resolve: (options: FindOptions, source: any, args: any, context: any, info: any) => any
 }
 type FunctionModelType = (source: any, args: any, context: any, info: any) => ModelType;
 type TargetType = ModelType | Association | FunctionModelType;
@@ -65,7 +64,7 @@ export default function resolver<M extends Model, TSource, TArgs, TContext>(targ
         const isAssociation = checkIsAssociation(target);
         const model: ModelCtor<M> = (isAssociation && (target as AssociationType).target || isModel && target) as ModelCtor<M>;
 
-        let findOptions = map2FindOptions(model, args, info, options.isCountType);
+        let findOptions = map2FindOptions(model, args, info);
 
         context = context || {};
         findOptions = await Promise.resolve(before(findOptions, args, context, info));

@@ -1,4 +1,4 @@
-const {SequelizeAdapter, where, scope, limit, offset, subQuery, OrderSortEnum, aggregateFunction, Query, Mutation, Subscription, DateType, field, having, attributes, group} = require("../dist");
+const {SequelizeAdapter, where, scope, limit, offset, subQuery, aggregateFunction, Query, Mutation, groupBy, having} = require("../dist");
 const {GraphQLInt, GraphQLNonNull, GraphQLString, GraphQLList} = require("graphql");
 const assert = require("assert");
 const _ = require("lodash");
@@ -12,10 +12,10 @@ const Model = sequelize.define("testConfig", {
 }, {timestamps: false});
 
 describe("#SequelizeSchema Options", () => {
-  it("aggregationArgs", async function () {
+  it("aggregateArgs", async function () {
     const adapter = new SequelizeAdapter(Model, {});
-    assert.deepStrictEqual(adapter.aggregationArgs, {
-      aggregateFunction,
+    assert.deepStrictEqual(adapter.aggregateArgs, {
+      fn: aggregateFunction,
       field: {
         type: GraphQLNonNull(adapter.fieldEnumType)
       },
@@ -39,7 +39,7 @@ describe("#SequelizeSchema Options", () => {
   });
   it("inputListArgs", async function () {
     const adapter = new SequelizeAdapter(Model);
-    assert.deepStrictEqual(adapter.inputListArgs, {
+    assert.deepStrictEqual(_.omit(adapter.inputListArgs), {
       scope,
       subQuery,
       limit: {
@@ -48,10 +48,12 @@ describe("#SequelizeSchema Options", () => {
       },
       offset,
       order: {
-        "description": "sort",
+        description: "sort",
         type: GraphQLList(adapter.orderType)
       },
-      where
+      where,
+      groupBy,
+      having
     });
   });
   it("modelFields", async function () {
@@ -89,7 +91,7 @@ describe("#SequelizeSchema Options", () => {
         }
       }
     });
-    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["id", "name", "hello"]);
+    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["id", "name", "_aggregate", "hello"]);
   });
   it("createTypeConfig", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -129,17 +131,11 @@ describe("#SequelizeSchema Options", () => {
   });
   it("modelType", async function () {
     const adapter = new SequelizeAdapter(sequelize.define("test", {name: DataTypes.STRING}, {timestamps: false}));
-    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name", "_aggregate"]));
   });
   it("queryFields", async function () {
     const adapter = new SequelizeAdapter(Model);
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["one", "aggregation", "list", "listPage"]));
-  });
-  it("queryFieldsIncludeOptions", async function () {
-    const adapter = new SequelizeAdapter(Model, {
-      includeQuery: [Query.LIST_PAGE]
-    });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["one", "aggregate", "list"]));
   });
   it("queryFieldsIncludeFalseOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -149,21 +145,21 @@ describe("#SequelizeSchema Options", () => {
   });
   it("queryFieldsExcludeOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
-      excludeQuery: [Query.ONE, Query.AGGREGATION, Query.LIST]
+      excludeQuery: [Query.ONE, Query.LIST]
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set([Query.AGGREGATE]));
   });
   it("queryFieldsIncludeFuncOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
-      includeQuery: (key) => key === Query.LIST_PAGE
+      includeQuery: (key) => key === Query.AGGREGATE
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set([Query.AGGREGATE]));
   });
   it("queryFieldsExcludeFuncOptions", async function () {
     const adapter = new SequelizeAdapter(Model, {
-      excludeQuery: (key) => key !== Query.LIST_PAGE
+      excludeQuery: (key) => key !== Query.AGGREGATE
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["listPage"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set([Query.AGGREGATE]));
   });
   
   it("mutationFields", async function () {
@@ -212,7 +208,7 @@ describe("#SequelizeSchema Options", () => {
         }
       }
     });
-    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["one", "aggregation", "list", "listPage", "custom"]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.queryFields[adapter.name].type.getFields())), new Set(["one", "aggregate", "list", "custom"]));
   });
   it("customMutationFields", async function () {
     const adapter = new SequelizeAdapter(Model, {

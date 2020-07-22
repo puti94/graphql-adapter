@@ -1,9 +1,9 @@
-import {BaseAdapter, PageType, BaseConfig} from "./BaseAdapter";
+import {BaseAdapter, BaseConfig} from "./BaseAdapter";
 import {
     GraphQLFieldConfigArgumentMap,
     GraphQLFieldConfigMap,
     GraphQLList, GraphQLNonNull,
-    GraphQLResolveInfo,
+    GraphQLResolveInfo, GraphQLString,
 } from "graphql";
 import {
     FindOptions,
@@ -21,7 +21,8 @@ import {
     includeFields,
     where,
     aggregateFunction,
-    replaceWhereOperators
+    replaceWhereOperators,
+    BasicType
 } from "./sequelizeImpl";
 import {AssociationType} from "./sequelizeImpl/resolver";
 
@@ -92,8 +93,9 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     updateFields: GraphQLFieldConfigArgumentMap;
     inputArgs: GraphQLFieldConfigArgumentMap;
     inputListArgs: GraphQLFieldConfigArgumentMap;
-    aggregationArgs: GraphQLFieldConfigArgumentMap;
+    aggregateArgs: GraphQLFieldConfigArgumentMap;
     modelFields: GraphQLFieldConfigMap<TSource, TContext>;
+    customFields: GraphQLFieldConfigMap<TSource, TContext>;
 
     constructor(model: ModelCtor<M>, config: SequelizeAdapterConfig<M, TSource, TContext> = {}) {
         super({
@@ -126,14 +128,41 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
                 type: new GraphQLList(this.orderType)
             }
         });
-        this.aggregationArgs = {
-            aggregateFunction,
+        this.aggregateArgs = {
+            fn: aggregateFunction,
             field: {
                 type: new GraphQLNonNull(this.fieldEnumType)
             },
-            where,
+            where
+        };
+        this.customFields = {
+            _aggregate: {
+                type: BasicType,
+                description: "聚合函数字段",
+                args: {
+                    fn: {
+                        type: GraphQLNonNull(GraphQLString),
+                        description: "聚合函数方法名"
+                    },
+                    field: {
+                        type: GraphQLNonNull(this.fieldEnumType)
+                    },
+                    alias: {
+                        type: GraphQLString,
+                        description: "指定聚合字段的别名, having 函数可以使用，默认为`_${fn}_${field}`"
+                    },
+                    args: {
+                        type: BasicType,
+                        description: "函数的参数,如无可不传,多个参数用数组包裹"
+                    }
+                },
+                resolve: (source, {field, fn, alias}: { field: string; fn: string; alias?: string }) => {
+                    return (source as unknown as M).getDataValue(alias || `_${fn}_${field}`);
+                }
+            }
         };
         this._initialHooks();
+
     }
 
     /**
@@ -224,14 +253,6 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         })(source, args, context, info);
     }
 
-    getListPageResolve(source: TSource, {scope, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
-        return resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
-            isCountType: true,
-            before: _getHandlerFindOptionsFn(this.config, "findAndCountAll"),
-            resolve: (findOptions) => this.model.scope(scope).findAndCountAll(findOptions)
-        })(source, args, context, info) as unknown as PageType<M>;
-    }
-
     async createResolve(source: TSource, {data}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo): Promise<M> {
         return this.model.create<M>(data, {include: Object.keys(this.model.associations)});
     }
@@ -251,7 +272,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             })(source, args, context, info);
             if (!model) throw new NotFoundError(`${this.primaryKeyName}:${primaryKeyValue} not fount`);
             await model.destroy({transaction: t});
-            t.commit();
+            await t.commit();
             return true;
         } catch (e) {
             await t.rollback();
@@ -282,9 +303,8 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         }
     }
 
-    async getAggregateResolve(source: TSource, {field, aggregateFunction, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
-        const number = await this.model.aggregate(field, aggregateFunction, await _getHandlerAggregateOptions(this.config, aggregateFunction, args, context, info));
-        return isNaN(number) ? null : number;
+    async getAggregateResolve(source: TSource, {field, fn, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
+        return this.model.aggregate(field, fn, await _getHandlerAggregateOptions(this.config, fn, args, context, info));
     }
 
 }

@@ -36,9 +36,30 @@ type GenerateAdapterConfig<T> =
         customMutation?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
         customSubscription?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
         configMap?: { [key in keyof T]?: SequelizeAdapterConfig<any, any, any> };
+        /**
+         * 是否添加Mutation
+         */
         includeMutation?: boolean;
+        /**
+         * 是否添加Subscription
+         */
         includeSubscription?: boolean;
-        withMetadata?: boolean;
+        /**
+         * 移除Query字段
+         */
+        omitQueryFields?: string[];
+        /**
+         * 移除Mutation字段
+         */
+        omitMutationFields?: string[];
+        /**
+         * 移除Subscription字段
+         */
+        omitSubscriptionFields?: string[];
+        /**
+         * 添加元数据查询字段
+         */
+        includeMetadata?: boolean;
     }
 
 type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
@@ -48,15 +69,15 @@ function thunkGet<T>(value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap
     return value;
 }
 
-function generateType<T>(include: boolean, value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>,
+function generateType<T>(include: boolean, omitFields: string[], value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>,
                          adapters: AdapterMaps<T>, fields: GraphQLFieldConfigMap<any, any>, config: GraphQLObjectTypeConfig<any, any>): GraphQLObjectType | null {
     if (!include && (!_.isFunction(value) && _.isEmpty(value)) || (_.isFunction(value) && _.isEmpty(thunkGet(value, adapters)))) return null;
     return new GraphQLObjectType({
         ...config,
-        fields: () => ({
+        fields: () => _.omit({
             ...(include ? fields : {}),
             ...thunkGet(value, adapters)
-        })
+        }, omitFields)
     });
 }
 
@@ -71,9 +92,12 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
         customQuery = {},
         customMutation = {},
         customSubscription = {},
+        omitQueryFields = [],
+        omitMutationFields = [],
+        omitSubscriptionFields = [],
         includeMutation = true,
         includeSubscription = true,
-        withMetadata = true,
+        includeMetadata = true,
         configMap = {},
         ...commonModelConfig
     } = options;
@@ -98,44 +122,49 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
         query: new GraphQLObjectType({
             name: "Query",
             description: "Base Query",
-            fields: () => ({
-                ..._.omit({
-                    gqlMetadataList: {
-                        type: new GraphQLList(MetaDataType),
-                        resolve: () => {
-                            return getMetaDataList(adapters);
-                        }
-                    },
-                    gqlMetadata: {
-                        type: MetaDataType,
-                        args: {
-                            name: {
-                                type: new GraphQLNonNull(new GraphQLEnumType({
-                                    name: "AdapterEnum",
-                                    values: Object.keys(adapters).reduce<any>((memo, key) => {
-                                        const name = adapters[key].name;
-                                        memo[name] = {value: key};
-                                        return memo;
-                                    }, {})
-                                })),
-                                description: "模型"
+            fields: () => {
+                const fields = {
+                    ...query,
+                    ...thunkGet(customQuery, adapters)
+                };
+                if (includeMetadata) {
+                    _.merge(fields, {
+                        gqlMetadataList: {
+                            type: new GraphQLList(MetaDataType),
+                            resolve: () => {
+                                return getMetaDataList(adapters);
                             }
                         },
-                        resolve: (source, {name}) => {
-                            return getMetaData(adapters[name]);
-                        }
-                    },
-                }, withMetadata ? [] : ["gqlMetadata", "gqlMetadataList"]),
-                ...query,
-                ...thunkGet(customQuery, adapters)
-            })
+                        gqlMetadata: {
+                            type: MetaDataType,
+                            args: {
+                                name: {
+                                    type: new GraphQLNonNull(new GraphQLEnumType({
+                                        name: "AdapterEnum",
+                                        values: Object.keys(adapters).reduce<any>((memo, key) => {
+                                            const name = adapters[key].name;
+                                            memo[name] = {value: key};
+                                            return memo;
+                                        }, {})
+                                    })),
+                                    description: "模型"
+                                }
+                            },
+                            resolve: (source: any, {name}: { name: string }) => {
+                                return getMetaData(adapters[name]);
+                            }
+                        },
+                    });
+                }
+                return _.omit(fields, omitQueryFields);
+            }
         }),
-        mutation: generateType(includeMutation, customMutation, adapters, mutation, {
+        mutation: generateType(includeMutation, omitMutationFields, customMutation, adapters, mutation, {
             name: "Mutation",
             description: "Base Mutation",
             fields: {}
         }),
-        subscription: generateType(includeSubscription, customSubscription, adapters, subscription, {
+        subscription: generateType(includeSubscription, omitSubscriptionFields, customSubscription, adapters, subscription, {
             name: "Subscription",
             description: "Base Subscription",
             fields: {}

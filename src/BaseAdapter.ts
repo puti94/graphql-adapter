@@ -13,7 +13,7 @@ import {
     GraphQLObjectTypeConfig,
     GraphQLInputObjectTypeConfig,
     GraphQLResolveInfo,
-    GraphQLFloat, GraphQLEnumType, GraphQLEnumTypeConfig, GraphQLEnumValueConfigMap,
+    GraphQLEnumType, GraphQLEnumTypeConfig, GraphQLEnumValueConfigMap,
 } from "graphql";
 
 import _ from "lodash";
@@ -28,12 +28,12 @@ import {
     Query,
     Mutation,
     Subscription,
-    MaybePromise, PageType, Resolver
+    MaybePromise, Resolver
 } from "./BaseAdapterType";
 
 export * from "./BaseAdapterType";
 import {withFilter} from "graphql-subscriptions";
-import {OrderSortEnum} from "./sequelizeImpl";
+import {BasicType, OrderSortEnum} from "./sequelizeImpl";
 
 
 /**
@@ -97,10 +97,11 @@ export abstract class BaseAdapter<M, TSource,
     abstract associationsUpdateFields?: GraphQLFieldConfigArgumentMap;
     abstract associationsCreateFields?: GraphQLFieldConfigArgumentMap;
     abstract modelFields?: GraphQLFieldConfigMap<TSource, TContext>;
+    abstract customFields?: GraphQLFieldConfigMap<TSource, TContext>;
     abstract updateFields?: GraphQLFieldConfigArgumentMap;
     abstract inputArgs: GraphQLFieldConfigArgumentMap;
     abstract inputListArgs: GraphQLFieldConfigArgumentMap;
-    abstract aggregationArgs: GraphQLFieldConfigArgumentMap;
+    abstract aggregateArgs: GraphQLFieldConfigArgumentMap;
     primaryKey: GraphQLFieldConfigArgumentMap;
     primaryKeyName?: string;
     description?: string;
@@ -143,9 +144,10 @@ export abstract class BaseAdapter<M, TSource,
             ...(this.config.modelTypeConfig || {}),
             fields: () => mapperModelFields({
                 ...this.modelFields,
+                ...this.customFields,
                 ...this.associationsFields,
                 ...thunkGet(this.config.associationsFields || {}),
-                ...thunkGet(this.config.modelFields || {}),
+                ...thunkGet(this.config.modelFields || {})
             })
         }) as GraphQLObjectType;
     }
@@ -308,35 +310,19 @@ export abstract class BaseAdapter<M, TSource,
     }
 
     /**
-     * 获取列表带分页数据
-     * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<PageType<M> | Promise<PageType<M> | null>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<PageType<M> | Promise<... | null>, TSource, TArgs, TContext> & {name?: string} extends ("after" | "resolve" | "before") ? never : keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<PageType<M> | Promise<... | null>, TSource, TArgs, TContext> & {name?: string}> & {resolve: (source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo) => any}}
-     */
-    get getListPage() {
-        return this._getFieldConfig({
-            type: this.pageType,
-            description: `fetch ${this.description} list and with count`,
-            args: {
-                ...this.inputListArgs,
-                ...(this.config.getList?.args || {})
-            },
-            resolve: this.getListPageResolve.bind(this)
-        }, this.config.getListPage);
-    }
-
-    /**
      *  获取聚合数据
      * @returns {GraphQLFieldConfig<TSource, TContext> & Pick<GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<number | Promise<number | null>, TSource, TArgs, TContext> & {name?: string}, keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<number | Promise<number | null>, TSource, TArgs, TContext> & {name?: string} extends ("after" | "resolve" | "before") ? never : keyof GraphQLFieldConfigOptions<TSource, TContext, TArgs> & BaseHook<number | Promise<number | null>, TSource, TArgs, TContext> & {name?: string}> & {resolve: (source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo) => any}}
      */
-    get getAggregation() {
+    get getAggregate() {
         return this._getFieldConfig({
-            type: GraphQLFloat,
-            description: `${this.description}聚合数据,支持 sum | min | max`,
+            type: BasicType,
+            description: `${this.description}聚合方法`,
             args: {
-                ...this.aggregationArgs,
-                ...(this.config.getAggregation?.args || {})
+                ...this.aggregateArgs,
+                ...(this.config.getAggregate?.args || {})
             },
             resolve: this.getAggregateResolve.bind(this)
-        }, this.config.getAggregation);
+        }, this.config.getAggregate);
     }
 
     /**
@@ -426,17 +412,15 @@ export abstract class BaseAdapter<M, TSource,
     get queryFields(): GraphQLFieldConfigMap<TSource, TContext> {
         const {includeQuery = true, excludeQuery, queryFields} = this.config;
         if (!includeQuery) return {};
-        const fields = [Query.ONE, Query.LIST, Query.LIST_PAGE, Query.AGGREGATION].reduce<GraphQLFieldConfigMap<TSource, TContext>>
+        const fields = [Query.ONE, Query.LIST, Query.AGGREGATE].reduce<GraphQLFieldConfigMap<TSource, TContext>>
         ((memo, key) => {
             if (!filterAction(includeQuery, excludeQuery, key)) return memo;
             if (key === Query.ONE) {
                 memo[getFieldName("one", this.config.getOne)] = this.getOne;
             } else if (key === Query.LIST) {
                 memo[getFieldName("list", this.config.getList)] = this.getList;
-            } else if (key === Query.LIST_PAGE) {
-                memo[getFieldName("listPage", this.config.getListPage)] = this.getListPage;
-            } else if (key === Query.AGGREGATION) {
-                memo[getFieldName("aggregation", this.config.getAggregation)] = this.getAggregation;
+            } else if (key === Query.AGGREGATE) {
+                memo[getFieldName("aggregate", this.config.getAggregate)] = this.getAggregate;
             }
             return memo;
         }, {});
@@ -588,15 +572,6 @@ export abstract class BaseAdapter<M, TSource,
      * @param info
      */
     abstract getListResolve(source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo): MaybePromise<M[]>
-
-    /**
-     * 实现获取列表带总量的方法
-     * @param source
-     * @param args
-     * @param context
-     * @param info
-     */
-    abstract getListPageResolve(source: TSource, args: TArgs, context: TContext, info: GraphQLResolveInfo): PageType<M>
 
     /**
      * 实现删除的方法

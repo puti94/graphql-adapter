@@ -1,8 +1,5 @@
-const {defaultListArgs, limit, offset, order, scope, where, subQuery, having, attributes, group} = require("../../dist/sequelizeImpl");
+const {defaultListArgs, limit, offset, order, scope, where, subQuery, having, groupBy} = require("../../dist/sequelizeImpl");
 const assert = require("assert");
-const {
-  GraphQLString,
-} = require("graphql");
 
 
 describe("#defaultListArgs", () => {
@@ -10,11 +7,11 @@ describe("#defaultListArgs", () => {
     limit: {...limit, defaultValue: 10},
     scope,
     where,
-    order, offset, subQuery
+    order, offset, subQuery, groupBy, having
   };
   
   it("no options", function () {
-    assert.deepStrictEqual(defaultListArgs({defaultLimit: 10}), expected);
+    assert.deepStrictEqual(defaultListArgs({defaultLimit: 10, groupBy, order}), expected);
   });
   
 });

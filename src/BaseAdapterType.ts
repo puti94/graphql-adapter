@@ -19,8 +19,7 @@ import {GraphQLInputFieldConfigMap} from "graphql/type/definition";
 export enum Query {
     ONE = "one",
     LIST = "list",
-    LIST_PAGE = "listPage",
-    AGGREGATION = "aggregation",
+    AGGREGATE = "aggregate",
 }
 
 /**
@@ -87,8 +86,7 @@ export type PageType<M> = { count: number; rows: M[] }
 export interface BaseQuery<M, TSource, TArgs, TContext> {
     getOne?: BaseFieldConfig<M, TSource, TArgs, TContext>;
     getList?: BaseFieldConfig<M[], TSource, TArgs, TContext>;
-    getListPage?: BaseFieldConfig<PageType<M>, TSource, TArgs, TContext>;
-    getAggregation?: BaseFieldConfig<number, TSource, TArgs, TContext>;
+    getAggregate?: BaseFieldConfig<number, TSource, TArgs, TContext>;
 }
 
 export interface BaseMutation<M, TSource, TArgs, TContext> {

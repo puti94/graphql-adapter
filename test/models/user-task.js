@@ -2,7 +2,8 @@
  * User: puti.
  * Time: 2020-05-11 16:15.
  */
-module.exports = function (sequelize, DataTypes) {
+const {DataTypes} = require("sequelize");
+module.exports = function (sequelize) {
   const user = sequelize.define("UserTask", {
     // UserId: {
     //   type: DataTypes.INTEGER,
