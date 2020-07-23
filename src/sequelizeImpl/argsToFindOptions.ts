@@ -5,8 +5,9 @@ import _ from "lodash";
 
 export default function argsToFindOptions(args: {
     [key: string]: any;
-}, model: ModelType) {
+}, model: ModelType): { options: FindOptions; associationFields: string[] } {
     const result: FindOptions = {};
+    let associationFields: string[] = [];
     if (args) {
         Object.keys(args).forEach(function (key) {
             if (!_.isUndefined(args[key])) {
@@ -21,7 +22,9 @@ export default function argsToFindOptions(args: {
                     // @ts-ignore
                     result.right = args[key];
                 } else if (key === "groupBy") {
-                    result.group = argsToOtherOptions(args[key], model).options;
+                    const otherOptions = argsToOtherOptions(args[key], model);
+                    result.group = otherOptions.options;
+                    associationFields = otherOptions.associationFields;
                 } else if (key === "subQuery") {
                     result.subQuery = args[key];
                 } else if (key === "where") {
@@ -39,5 +42,8 @@ export default function argsToFindOptions(args: {
             }
         });
     }
-    return result;
+    return {
+        options: result,
+        associationFields
+    };
 }

@@ -26,7 +26,8 @@ export default function argsToOtherOptions(args: OtherArgs, model: ModelType): {
                     return Sequelize.col(model.rawAttributes[field].field || field);
                 } else if (model.associations[field]) {
                     associationFields.push(field);
-                    return Sequelize.col(`${field}.${model.associations[field].target.rawAttributes[subField].field || subField}`);
+                    const target = model.associations[field].target;
+                    return Sequelize.col(`${field}.${target.rawAttributes[subField].field || subField}`);
                 }
                 return arg;
             } else if (_.isObject(arg)) {

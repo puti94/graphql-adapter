@@ -157,6 +157,23 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
                 resolve: (source, {fn, as}: { as?: string; fn: string }) => {
                     return (source as unknown as M).getDataValue(as || `_${fn}`);
                 }
+            },
+            [CONS.colName]: {
+                type: BasicType,
+                description: "关联字段",
+                args: {
+                    name: {
+                        type: GraphQLNonNull(GraphQLString),
+                        description: "关联字段名，例子：\"user.name\""
+                    },
+                    as: {
+                        type: GraphQLNonNull(GraphQLString),
+                        description: "指定别名, having 参数可以使用, 如无指定默认用`${name}`"
+                    }
+                },
+                resolve: (source, {as}: { as: string }) => {
+                    return (source as unknown as M).getDataValue(as);
+                }
             }
         };
         this._initialHooks();

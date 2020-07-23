@@ -16,7 +16,8 @@ export default function map2FindOptions(model: ModelType, args: {
     [key: string]: any;
 }, info: GraphQLResolveInfo | IInfoField[]): FindOptions {
 
-    const result: FindOptions = argsToFindOptions(args, model);
+    const result = argsToFindOptions(args, model);
+    const options = result.options;
     const fields = _.isArray(info) ? info : getRealFields(info);
     //关联字段
     const associationFields = fields?.filter(t => !_.isEmpty(t.fields) && !_.isEmpty(model.associations[t.name]));
@@ -24,6 +25,8 @@ export default function map2FindOptions(model: ModelType, args: {
     const attributeFields = fields?.filter(t => model.rawAttributes[t.name]);
     //聚合函数字段
     const aggregateFields = fields?.filter(t => t.name === CONS.aggregationName);
+    //子级关联字段
+    const subFields = fields?.filter(t => t.name === CONS.colName);
 
     const includeFieldNames = !fields ? null : _.uniq([...attributeFields.map(t => t.name), ...associationFields.map(t => {
         const association = model.associations[t.name];
@@ -36,7 +39,7 @@ export default function map2FindOptions(model: ModelType, args: {
     })]);
     if (!_.isEmpty(associationFields)) {
         // @ts-ignore
-        result.include = associationFields
+        options.include = associationFields
             .map(field => {
                 const association = model.associations[field.name];
                 return {
@@ -46,31 +49,47 @@ export default function map2FindOptions(model: ModelType, args: {
                 };
             });
     }
-    if (_.isEmpty(result.attributes) && !_.isEmpty(includeFieldNames)) {
-        result.attributes = includeFieldNames;
+    if (_.isEmpty(options.attributes) && !_.isEmpty(includeFieldNames)) {
+        options.attributes = includeFieldNames;
     }
+
+    function concatAssociations(fields: string[]) {
+        fields.forEach(modelName => {
+            if (_.isEmpty(_.find(options.include as [], {as: modelName}))) {
+                if (!options.include) options.include = [];
+                (options.include as Includeable[]).push({
+                    model: model.associations[modelName].target,
+                    as: modelName,
+                    attributes: []
+                });
+            }
+        });
+    }
+
+    concatAssociations(result.associationFields);
+
     if (!_.isEmpty(aggregateFields)) {
         const items = aggregateFields.map<ProjectionAlias>(info => {
             const {fn, as, args} = info.args;
             const otherOptions = argsToOtherOptions({fn, args}, model);
-
-            otherOptions.associationFields.forEach(modelName => {
-                if (_.isEmpty(_.find(result.include as [], {as: modelName}))) {
-                    if (!result.include) result.include = [];
-                    (result.include as Includeable[]).push({
-                        model: model.associations[modelName].target,
-                        as: modelName,
-                        attributes: []
-                    });
-                }
-            });
+            concatAssociations(otherOptions.associationFields);
             return [otherOptions.options[0], as || `_${fn}`] as ProjectionAlias;
         });
-        result.attributes = (result.attributes as (string | ProjectionAlias)[] || []).concat(items);
+        options.attributes = (options.attributes as (string | ProjectionAlias)[] || []).concat(items);
     }
 
+    if (!_.isEmpty(subFields)) {
+        const items = subFields.map(info => {
+            const {name, as} = info.args;
+            const otherOptions = argsToOtherOptions(name, model);
+            concatAssociations(otherOptions.associationFields);
+            return [otherOptions.options[0], as || `_${name}`];
+        });
+        // @ts-ignore
+        options.attributes = (options.attributes as (string | ProjectionAlias)[] || []).concat(items);
+    }
 
-    return result;
+    return options;
 }
 
 type AggregationOptions = {
