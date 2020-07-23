@@ -1,10 +1,11 @@
 import {replaceWhereOperators} from "./replaceWhereOperators";
-import {FindOptions} from "sequelize";
+import argsToOtherOptions from "./argsToOtherOptions";
+import {FindOptions, ModelType} from "sequelize";
 import _ from "lodash";
 
 export default function argsToFindOptions(args: {
     [key: string]: any;
-}, targetAttributes: string[]) {
+}, model: ModelType) {
     const result: FindOptions = {};
     if (args) {
         Object.keys(args).forEach(function (key) {
@@ -20,7 +21,7 @@ export default function argsToFindOptions(args: {
                     // @ts-ignore
                     result.right = args[key];
                 } else if (key === "groupBy") {
-                    result.group = args[key];
+                    result.group = argsToOtherOptions(args[key], model).options;
                 } else if (key === "subQuery") {
                     result.subQuery = args[key];
                 } else if (key === "where") {
@@ -30,7 +31,7 @@ export default function argsToFindOptions(args: {
                 } else if (key === "order") {
                     const order = !_.isUndefined(args["order"]) ? (_.isArray(args["order"]) ? args["order"] : [args["order"]]) : [];
                     result.order = (order as { name: string; sort?: string }[]).map(t => [t.name, t.sort || "asc"]);
-                } else if (targetAttributes.includes(key)) {
+                } else if (model.rawAttributes[key]) {
                     result.where = result.where || {};
                     // @ts-ignore
                     result.where[key] = args[key];

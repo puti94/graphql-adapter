@@ -7,6 +7,7 @@ import {
     GraphQLBoolean,
 } from "graphql";
 import JSONType from "./types/jsonType";
+import {BasicType} from "./types";
 
 const where = {
     type: JSONType,
@@ -19,8 +20,8 @@ const having = {
 };
 
 const groupBy = {
-    type: GraphQLString,
-    description: "groupBy field"
+    type: BasicType,
+    description: "分组参数,如无可不传,多个分组用数组包裹 例: groupBy:\"time\" | groupBy:[{\"fn\":\"to_timestamp\",args:\"time\"},\"yyyy-MM-dd HH24-MI-SS\"] "
 };
 const methodNumberFields = {
     SUM: {

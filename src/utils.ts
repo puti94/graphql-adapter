@@ -14,6 +14,15 @@ import {ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
 import {MetaDataType, getMetaDataList, getMetaData} from "./metadata";
+import CONS from "./constant";
+
+/**
+ * 覆盖一些常量
+ * @param map
+ */
+export function mergeConstant(map: Partial<typeof CONS>) {
+    _.merge(CONS, map);
+}
 
 function getName(model: ModelType) {
     return model.name;

@@ -1,12 +1,15 @@
 const http = require("http");
 const {ApolloServer, PubSub} = require("apollo-server-express");
 const express = require("express");
-const {generateSchema} = require("../dist");
+const {generateSchema, mergeConstant} = require("../dist");
 const {sequelize, models} = require("./db");
 const {GraphQLBoolean, GraphQLString, GraphQLNonNull} = require("graphql");
 const app = express();
 const httpServer = http.createServer(app);
 sequelize.sync();
+
+mergeConstant({aggregationName: "_fn"});
+
 const server = new ApolloServer({
   schema: generateSchema(models, {
     pubSub: new PubSub(),

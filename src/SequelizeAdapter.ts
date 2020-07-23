@@ -11,6 +11,7 @@ import {
     Model,
     ModelCtor,
 } from "sequelize";
+import CONS from "./constant";
 import {getName} from "./utils";
 import {NotFoundError} from "./error";
 import {
@@ -136,7 +137,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
             where
         };
         this.customFields = {
-            _aggregate: {
+            [CONS.aggregationName]: {
                 type: BasicType,
                 description: "聚合函数字段",
                 args: {
@@ -144,20 +145,17 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
                         type: GraphQLNonNull(GraphQLString),
                         description: "聚合函数方法名"
                     },
-                    field: {
-                        type: GraphQLNonNull(this.fieldEnumType)
-                    },
-                    alias: {
+                    as: {
                         type: GraphQLString,
-                        description: "指定聚合字段的别名, having 函数可以使用，默认为`_${fn}_${field}`"
+                        description: "指定聚合字段的别名, having 参数可以使用, 如无指定默认用`_${fn}`"
                     },
                     args: {
-                        type: BasicType,
-                        description: "函数的参数,如无可不传,多个参数用数组包裹"
+                        type: GraphQLNonNull(BasicType),
+                        description: "函数的参数,如无可不传,多个参数用数组包裹 例: args:\"time\" | args:[{\"fn\":\"to_timestamp\",args:\"time\"},\"yyyy-MM-dd HH24-MI-SS\"] "
                     }
                 },
-                resolve: (source, {field, fn, alias}: { field: string; fn: string; alias?: string }) => {
-                    return (source as unknown as M).getDataValue(alias || `_${fn}_${field}`);
+                resolve: (source, {fn, as}: { as?: string; fn: string }) => {
+                    return (source as unknown as M).getDataValue(as || `_${fn}`);
                 }
             }
         };

@@ -30,7 +30,7 @@ const JSONType: GraphQLScalarType = new GraphQLScalarType({
     }
 });
 
-const astToJson = {
+export const astToJson = {
   [Kind.INT](ast: IntValueNode) {
     return GraphQLInt.parseLiteral(ast,null);
   },

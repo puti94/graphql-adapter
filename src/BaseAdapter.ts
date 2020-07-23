@@ -15,7 +15,7 @@ import {
     GraphQLResolveInfo,
     GraphQLEnumType, GraphQLEnumTypeConfig, GraphQLEnumValueConfigMap,
 } from "graphql";
-
+import CONS from "./constant";
 import _ from "lodash";
 import {map2NullableType} from "./utils";
 import {
@@ -163,7 +163,7 @@ export abstract class BaseAdapter<M, TSource,
             values: Object.keys(this.modelFields).reduce<GraphQLEnumValueConfigMap>((memo, key) => {
                 memo[key] = {value: key, description: this.modelFields[key].description};
                 return memo;
-            }, {"_all": {value: "*", description: "all"}})
+            }, {[CONS.fieldAllMenu]: {value: "*", description: "all"}})
         }, GraphQLEnumType) as GraphQLEnumType;
     }
 
@@ -416,11 +416,11 @@ export abstract class BaseAdapter<M, TSource,
         ((memo, key) => {
             if (!filterAction(includeQuery, excludeQuery, key)) return memo;
             if (key === Query.ONE) {
-                memo[getFieldName("one", this.config.getOne)] = this.getOne;
+                memo[getFieldName(CONS.getOneField, this.config.getOne)] = this.getOne;
             } else if (key === Query.LIST) {
-                memo[getFieldName("list", this.config.getList)] = this.getList;
+                memo[getFieldName(CONS.getListField, this.config.getList)] = this.getList;
             } else if (key === Query.AGGREGATE) {
-                memo[getFieldName("aggregate", this.config.getAggregate)] = this.getAggregate;
+                memo[getFieldName(CONS.getAggregateField, this.config.getAggregate)] = this.getAggregate;
             }
             return memo;
         }, {});
