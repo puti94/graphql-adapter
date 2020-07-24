@@ -44,8 +44,8 @@ sequelize.sync();
 const server = new ApolloServer({
   schema: generateSchema(models, {
     pubSub: new PubSub(),
-    handlerFindOptions: ((action, options) => {
-      console.log("action", action, options);
+    handlerFindOptions: ((action, options, fields) => {
+      console.log("action", action, options, fields);
       return options;
     }),
     handlerAggregateOptions: ((action, options) => {

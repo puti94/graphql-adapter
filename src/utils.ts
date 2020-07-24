@@ -6,14 +6,10 @@ import {
     GraphQLObjectType,
     GraphQLSchemaConfig,
     GraphQLObjectTypeConfig,
-    GraphQLList,
-    GraphQLNonNull,
-    GraphQLEnumType
 } from "graphql";
 import {ModelCtor, ModelType} from "sequelize";
 import {SequelizeAdapter, SequelizeAdapterConfig} from "./SequelizeAdapter";
 import _ from "lodash";
-import {MetaDataType, getMetaDataList, getMetaData} from "./metadata";
 import CONS from "./constant";
 
 /**
@@ -37,7 +33,7 @@ function map2NullableType(fields: GraphQLFieldConfigArgumentMap): GraphQLFieldCo
     return args;
 }
 
-type GenerateAdapterConfig<T> =
+export type GenerateAdapterConfig<T> =
     SequelizeAdapterConfig<any, any, any> &
     Partial<GraphQLSchemaConfig> &
     {
@@ -65,13 +61,9 @@ type GenerateAdapterConfig<T> =
          * 移除Subscription字段
          */
         omitSubscriptionFields?: string[];
-        /**
-         * 添加元数据查询字段
-         */
-        includeMetadata?: boolean;
     }
 
-type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
+export type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
 
 function thunkGet<T>(value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>, adapters: AdapterMaps<T>): GraphQLFieldConfigMap<any, any> {
     if (_.isFunction(value)) return value(adapters);
@@ -106,7 +98,6 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
         omitSubscriptionFields = [],
         includeMutation = true,
         includeSubscription = true,
-        includeMetadata = true,
         configMap = {},
         ...commonModelConfig
     } = options;
@@ -136,35 +127,6 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
                     ...query,
                     ...thunkGet(customQuery, adapters)
                 };
-                if (includeMetadata) {
-                    _.merge(fields, {
-                        gqlMetadataList: {
-                            type: new GraphQLList(MetaDataType),
-                            resolve: () => {
-                                return getMetaDataList(adapters);
-                            }
-                        },
-                        gqlMetadata: {
-                            type: MetaDataType,
-                            args: {
-                                name: {
-                                    type: new GraphQLNonNull(new GraphQLEnumType({
-                                        name: "AdapterEnum",
-                                        values: Object.keys(adapters).reduce<any>((memo, key) => {
-                                            const name = adapters[key].name;
-                                            memo[name] = {value: key};
-                                            return memo;
-                                        }, {})
-                                    })),
-                                    description: "模型"
-                                }
-                            },
-                            resolve: (source: any, {name}: { name: string }) => {
-                                return getMetaData(adapters[name]);
-                            }
-                        },
-                    });
-                }
                 return _.omit(fields, omitQueryFields);
             }
         }),

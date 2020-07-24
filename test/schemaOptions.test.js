@@ -91,7 +91,7 @@ describe("#SequelizeSchema Options", () => {
         }
       }
     });
-    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["id", "name", CONS.aggregationName, "hello"]);
+    assert.deepStrictEqual(Object.keys(adapter.modelType.getFields()), ["id", "name", CONS.aggregationName, CONS.colName, "hello"]);
   });
   it("createTypeConfig", async function () {
     const adapter = new SequelizeAdapter(Model, {
@@ -131,7 +131,7 @@ describe("#SequelizeSchema Options", () => {
   });
   it("modelType", async function () {
     const adapter = new SequelizeAdapter(sequelize.define("test", {name: DataTypes.STRING}, {timestamps: false}));
-    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name", CONS.aggregationName]));
+    assert.deepStrictEqual(new Set(Object.keys(adapter.modelType.getFields())), new Set(["id", "name", CONS.aggregationName, CONS.colName]));
   });
   it("queryFields", async function () {
     const adapter = new SequelizeAdapter(Model);

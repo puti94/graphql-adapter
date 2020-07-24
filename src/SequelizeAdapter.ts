@@ -1,29 +1,26 @@
-import {BaseAdapter, BaseConfig} from "./BaseAdapter";
+import {BaseAdapter, BaseConfig, MaybePromise, Mutation, Query} from "./BaseAdapter";
 import {
     GraphQLFieldConfigArgumentMap,
     GraphQLFieldConfigMap,
-    GraphQLList, GraphQLNonNull,
-    GraphQLResolveInfo, GraphQLString,
+    GraphQLList,
+    GraphQLNonNull,
+    GraphQLResolveInfo,
+    GraphQLString,
 } from "graphql";
-import {
-    FindOptions,
-    AggregateOptions,
-    Model,
-    ModelCtor,
-} from "sequelize";
+import {AggregateOptions, FindOptions, Model, ModelCtor,} from "sequelize";
 import CONS from "./constant";
 import {getName} from "./utils";
 import {NotFoundError} from "./error";
 import {
+    aggregateFunction,
     attributeFields,
+    BasicType,
     defaultArgs,
     defaultListArgs,
-    resolver,
     includeFields,
-    where,
-    aggregateFunction,
     replaceWhereOperators,
-    BasicType
+    resolver,
+    where
 } from "./sequelizeImpl";
 import {AssociationType} from "./sequelizeImpl/resolver";
 
@@ -52,7 +49,7 @@ export type SequelizeAdapterConfig<M extends Model, TSource, TContext> =
      * @param context
      * @param info
      */
-    handlerFindOptions?: (action: string, options: FindOptions, args: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) => FindOptions;
+    handlerFindOptions?: (action: Query | Mutation, options: FindOptions, fields: string[], args: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) => FindOptions;
     /**
      * 处理AggregateOptions的钩子
      * @param action
@@ -71,9 +68,9 @@ function getPrimaryKey<M extends Model>(model: ModelCtor<M>): GraphQLFieldConfig
     };
 }
 
-function _getHandlerFindOptionsFn(config: SequelizeAdapterConfig<any, any, any>, action: string) {
-    return (options: FindOptions, args: any, context: any, info: any) => {
-        if (_.isFunction(config.handlerFindOptions)) return Promise.resolve(config.handlerFindOptions(action, options, args, context, info));
+function _getHandlerFindOptionsFn(config: SequelizeAdapterConfig<any, any, any>, action: Query | Mutation) {
+    return (options: FindOptions, fields: string[], args: any, context: any, info: any) => {
+        if (_.isFunction(config.handlerFindOptions)) return Promise.resolve(config.handlerFindOptions(action, options, fields, args, context, info));
         return options;
     };
 }
@@ -85,6 +82,18 @@ function _getHandlerAggregateOptions(config: SequelizeAdapterConfig<any, any, an
     };
     if (_.isFunction(config.handlerAggregateOptions)) return Promise.resolve(config.handlerAggregateOptions(action, options, args, context, info));
     return options;
+}
+
+const adapterManager = new Map<ModelCtor<any>, SequelizeAdapter<any, any, any>>();
+
+
+export function getAdapter<M extends Model, TSource, TContext>(model: ModelCtor<M>, config: SequelizeAdapterConfig<M, TSource, TContext> = {}):
+    SequelizeAdapter<M, TSource, TContext> {
+    if (!adapterManager.has(model)) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        adapterManager.set(model, new SequelizeAdapter<any, any, any>(model, config));
+    }
+    return adapterManager.get(model);
 }
 
 
@@ -211,7 +220,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         const {associations} = this.model;
         return Object.keys(associations).reduce<GraphQLFieldConfigMap<TSource, TContext>>((fields, key) => {
             const association = associations[key] as AssociationType;
-            const modelSchema = new SequelizeAdapter(association.target);
+            const modelSchema = getAdapter(association.target);
             if (!modelSchema) return fields;
             const type = modelSchema.modelType;
             const isList = ["BelongsToMany", "HasMany"].includes(association.associationType);
@@ -252,18 +261,19 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         return {};
     }
 
+
+    // @ts-ignore
     getOneResolve(source: TSource, {scope, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
-        return resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
-            before: _getHandlerFindOptionsFn(this.config, "findOne"),
+        return resolver<M, TSource, TContext, SequelizeArgs>(this, {
+            before: _getHandlerFindOptionsFn(this.config, Query.ONE),
             resolve:
                 (findOptions) => this.model.scope(scope).findOne(findOptions)
-        })
-        (source, args, context, info);
+        })(source, args, context, info) as MaybePromise<M>;
     }
 
     getListResolve(source: TSource, {scope, ...args}: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) {
-        return resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
-            before: _getHandlerFindOptionsFn(this.config, "findList"),
+        return resolver<M, TSource, TContext, SequelizeArgs>(this, {
+            before: _getHandlerFindOptionsFn(this.config, Query.LIST),
             resolve: (findOptions) => this.model.scope(scope).findAll(findOptions)
         })(source, args, context, info);
     }
@@ -278,13 +288,13 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         const t = await this.model.sequelize.transaction();
         try {
             const primaryKeyValue = args[this.primaryKeyName];
-            const model: M = await resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
-                before: _getHandlerFindOptionsFn(this.config, "remove"),
+            const model: M = await resolver<M, TSource, TContext, SequelizeArgs>(this, {
+                before: _getHandlerFindOptionsFn(this.config, Mutation.REMOVE),
                 resolve: () => this.model.findByPk(primaryKeyValue, {
                     transaction: t,
                     lock: t.LOCK.UPDATE
                 })
-            })(source, args, context, info);
+            })(source, args, context, info) as M;
             if (!model) throw new NotFoundError(`${this.primaryKeyName}:${primaryKeyValue} not fount`);
             await model.destroy({transaction: t});
             await t.commit();
@@ -301,13 +311,13 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
         const t = await this.model.sequelize.transaction();
         try {
             const primaryKeyValue = args[this.primaryKeyName];
-            let model: M = await resolver<M, TSource, TContext, SequelizeArgs>(this.model, {
-                before: _getHandlerFindOptionsFn(this.config, "update"),
+            let model: M = await resolver<M, TSource, TContext, SequelizeArgs>(this, {
+                before: _getHandlerFindOptionsFn(this.config, Mutation.UPDATE),
                 resolve: () => this.model.findByPk(primaryKeyValue, {
                     transaction: t,
                     lock: t.LOCK.UPDATE
                 })
-            })(source, args, context, info);
+            })(source, args, context, info) as M;
             if (!model) throw new NotFoundError(`${this.primaryKeyName}:${primaryKeyValue} not fount`);
             model = await model.update(data, {transaction: t});
             await t.commit();

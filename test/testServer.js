@@ -1,7 +1,8 @@
 const http = require("http");
 const {ApolloServer, PubSub} = require("apollo-server-express");
 const express = require("express");
-const {generateSchema, mergeConstant} = require("../dist");
+const _ = require("lodash");
+const {generateSchema, mergeConstant, metadataFields} = require("../dist");
 const {sequelize, models} = require("./db");
 const {GraphQLBoolean, GraphQLString, GraphQLNonNull} = require("graphql");
 const app = express();
@@ -14,7 +15,8 @@ const server = new ApolloServer({
   schema: generateSchema(models, {
     pubSub: new PubSub(),
     withMetadata: true,
-    handlerFindOptions: ((action, options) => {
+    handlerFindOptions: ((action, options, fields) => {
+      console.log("哈哈", action, options, fields);
       return {
         ...options,
       };
@@ -29,6 +31,7 @@ const server = new ApolloServer({
         return true;
       }
     },
+    customQuery: metadataFields,
     customMutation: {
       openServer: {
         type: GraphQLBoolean,
@@ -57,6 +60,9 @@ const server = new ApolloServer({
             return true;
           }
         },
+        mapperModelFields(fields) {
+          return _.omit(fields, "id");
+        }
       }
     }
   }),

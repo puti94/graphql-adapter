@@ -1,11 +1,12 @@
 import {replaceWhereOperators} from "./replaceWhereOperators";
 import argsToOtherOptions from "./argsToOtherOptions";
-import {FindOptions, ModelType} from "sequelize";
+import {FindOptions} from "sequelize";
 import _ from "lodash";
+import {SequelizeAdapter} from "../SequelizeAdapter";
 
 export default function argsToFindOptions(args: {
     [key: string]: any;
-}, model: ModelType): { options: FindOptions; associationFields: string[] } {
+}, adapter: SequelizeAdapter<any, any, any>): { options: FindOptions; associationFields: string[] } {
     const result: FindOptions = {};
     let associationFields: string[] = [];
     if (args) {
@@ -22,7 +23,7 @@ export default function argsToFindOptions(args: {
                     // @ts-ignore
                     result.right = args[key];
                 } else if (key === "groupBy") {
-                    const otherOptions = argsToOtherOptions(args[key], model);
+                    const otherOptions = argsToOtherOptions(args[key], adapter);
                     result.group = otherOptions.options;
                     associationFields = otherOptions.associationFields;
                 } else if (key === "subQuery") {
@@ -34,7 +35,7 @@ export default function argsToFindOptions(args: {
                 } else if (key === "order") {
                     const order = !_.isUndefined(args["order"]) ? (_.isArray(args["order"]) ? args["order"] : [args["order"]]) : [];
                     result.order = (order as { name: string; sort?: string }[]).map(t => [t.name, t.sort || "asc"]);
-                } else if (model.rawAttributes[key]) {
+                } else if (adapter.modelType.getFields()[key]) {
                     result.where = result.where || {};
                     // @ts-ignore
                     result.where[key] = args[key];

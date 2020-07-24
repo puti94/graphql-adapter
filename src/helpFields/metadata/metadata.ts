@@ -12,8 +12,26 @@ import {
 } from "graphql";
 import * as _ from "lodash";
 import {AbstractDataType} from "sequelize";
-import {SequelizeAdapter} from "./SequelizeAdapter";
-import {DateType} from "./sequelizeImpl/types";
+import {SequelizeAdapter} from "../../SequelizeAdapter";
+import {DateType, JSONType} from "../../sequelizeImpl/types";
+import CONS from "../../constant";
+import {ModelValidateOptions} from "sequelize/types/lib/model";
+
+
+type FieldMetaData = {
+    type: string;
+    dataType: string;
+    name: string;
+    description: string;
+    title: string;
+    allowNull: boolean;
+    isPk: boolean;
+    isList: boolean;
+    editable: boolean;
+    createAble: boolean;
+    sortable: boolean;
+    validate?: ModelValidateOptions;
+}
 
 const FieldMetaDataType = new GraphQLObjectType({
     name: "FieldMetaData",
@@ -31,18 +49,6 @@ const FieldMetaDataType = new GraphQLObjectType({
             description: "字段键值",
             type: GraphQLNonNull(GraphQLString)
         },
-        allowNull: {
-            description: "允许为空",
-            type: GraphQLNonNull(GraphQLBoolean)
-        },
-        isList: {
-            description: "是否列表",
-            type: GraphQLNonNull(GraphQLBoolean)
-        },
-        isPk: {
-            description: "是否主键",
-            type: GraphQLBoolean
-        },
         description: {
             description: "字段描述",
             type: GraphQLString
@@ -51,42 +57,40 @@ const FieldMetaDataType = new GraphQLObjectType({
             description: "字段标签",
             type: GraphQLString
         },
-        enable: {
-            description: "是否可用",
+        allowNull: {
+            description: "允许为空",
+            type: GraphQLNonNull(GraphQLBoolean)
+        },
+        isPk: {
+            description: "是否主键",
             type: GraphQLBoolean
+        },
+        isList: {
+            description: "是否列表",
+            type: GraphQLNonNull(GraphQLBoolean)
         },
         sortable: {
             description: "是否可以排序",
-            type: GraphQLBoolean
+            type: GraphQLNonNull(GraphQLBoolean)
+        },
+        editable: {
+            description: "是否可编辑",
+            type: GraphQLNonNull(GraphQLBoolean)
+        },
+        createAble: {
+            description: "是否可创建",
+            type: GraphQLNonNull(GraphQLBoolean)
+        },
+        validate: {
+            description: "验证规则",
+            type: JSONType
         }
     }
 });
 
-const ActionMetaDataType = new GraphQLObjectType({
-    name: "ActionMetaData",
-    description: "操作描述",
-    fields: {
-        name: {
-            description: "数据类型",
-            type: new GraphQLNonNull(GraphQLString)
-        },
-        args: {
-            description: "参数字段",
-            type: new GraphQLList(FieldMetaDataType)
-        },
-        fields: {
-            description: "返回字段",
-            type: new GraphQLList(FieldMetaDataType)
-        },
-        enable: {
-            description: "是否可用",
-            type: GraphQLBoolean
-        }
-    }
-});
 
 export const MetaDataType = new GraphQLObjectType({
-    name: "MetaData",
+    name: "GqlMetaData",
     description: "单表的定义",
     fields: {
         name: {
@@ -113,73 +117,36 @@ export const MetaDataType = new GraphQLObjectType({
             description: "描述字段",
             type: GraphQLString
         },
-        findOne: {
-            description: "查找单个",
-            type: ActionMetaDataType
+        editable: {
+            description: "是否可编辑",
+            type: GraphQLNonNull(GraphQLBoolean)
         },
-        findList: {
-            description: "查找列表",
-            type: ActionMetaDataType
+        createAble: {
+            description: "是否可创建",
+            type: GraphQLNonNull(GraphQLBoolean)
         },
-        create: {
-            description: "新建",
-            type: ActionMetaDataType
-        },
-        update: {
-            description: "更新",
-            type: ActionMetaDataType
-        },
-        remove: {
-            description: "删除",
-            type: ActionMetaDataType
-        },
-        enable: {
-            description: "是否可用",
-            type: GraphQLBoolean
+        removeAble: {
+            description: "是否可删除",
+            type: GraphQLNonNull(GraphQLBoolean)
         },
     }
 });
 
-
-type FieldMetaData = {
-    type: string;
-    dataType?: string;
-    name: string;
-    description: string;
-    title: string;
-    allowNull: boolean;
-    isPk?: boolean;
-    isList: boolean;
-    enable?: boolean;
-    sortable?: boolean;
-}
-
-type ActionMetaData = {
-    name: string;
-    args?: FieldMetaData[];
-    fields?: FieldMetaData[];
-    enable: boolean;
-}
-
-type MetaData = {
+type TableMetaData = {
     name: string;
     title: string;
     description: string;
     type: string;
     pkName?: string;
-    enable?: boolean;
-    fields?: FieldMetaData[];
-    findOne?: ActionMetaData;
-    findList?: ActionMetaData;
-    create?: ActionMetaData;
-    update?: ActionMetaData;
-    remove?: ActionMetaData;
+    createAble: boolean;
+    editable: boolean;
+    removeAble: boolean;
+    fields: FieldMetaData[];
 }
 
 
 function getSortable(key: string, adapter: SequelizeAdapter<any, any, any>): boolean {
     const field = adapter.modelType.getFields()[key];
-    // @ts-ignore
     const attribute = adapter.model.rawAttributes[key];
     if (attribute) {
         return ["TIME", "BIGINT", "DECIMAL", "DATE", "INTEGER", "FLOAT", "DOUBLE", "DOUBLE PRECISION"].some(type => (attribute.type as AbstractDataType).key === type);
@@ -189,7 +156,7 @@ function getSortable(key: string, adapter: SequelizeAdapter<any, any, any>): boo
 
 function getTypeFieldsMetadata(type: GraphQLObjectType | GraphQLInputObjectType, adapter: SequelizeAdapter<any, any, any>) {
     const fields = type.getFields();
-    return Object.keys(fields).map<FieldMetaData>(key => {
+    return Object.keys(fields).filter(key => ![CONS.aggregationName, CONS.colName].includes(key)).map<FieldMetaData>(key => {
         const field = fields[key];
         const attribute = adapter.model.rawAttributes[key];
         return {
@@ -202,43 +169,31 @@ function getTypeFieldsMetadata(type: GraphQLObjectType | GraphQLInputObjectType,
             description: field.description,
             title: field.description || key,
             sortable: getSortable(key, adapter),
-            enable: true
+            editable: !!adapter.updateType.getFields()[key],
+            createAble: !!adapter.createType.getFields()[key],
+            validate: attribute?.validate
         };
     });
 }
 
 
-export function getMetaData(adapter: SequelizeAdapter<any, any, any>): MetaData {
+export function getMetaData(adapter: SequelizeAdapter<any, any, any>): TableMetaData {
+    const mutationFields = (adapter.mutationFields[adapter.name]?.type as GraphQLObjectType)?.getFields() || {};
     return {
         name: adapter.name,
         pkName: adapter.primaryKeyName,
         type: adapter.modelType.toString(),
         title: adapter.description,
         description: adapter.description,
+        createAble: !!mutationFields[adapter.nameMutationCreate],
+        editable: !!mutationFields[adapter.nameMutationUpdate],
+        removeAble: !!mutationFields[adapter.nameMutationRemove],
         fields: getTypeFieldsMetadata(adapter.modelType, adapter),
-        findOne: {
-            name: adapter.getOne.description,
-            enable: true,
-        },
-        findList: {
-            name: adapter.getList.description,
-            enable: true,
-        },
-        create: {
-            name: adapter.getList.description,
-            enable: true,
-            args: getTypeFieldsMetadata(adapter.createType, adapter),
-        },
-        update: {
-            name: adapter.getList.description,
-            enable: true,
-            args: getTypeFieldsMetadata(adapter.createType, adapter),
-        },
     };
 }
 
-export function getMetaDataList(adapters: { [key: string]: SequelizeAdapter<any, any, any> }): MetaData[] {
-    return Object.keys(adapters).map<MetaData>(key => {
+export function getMetaDataList(adapters: { [key: string]: SequelizeAdapter<any, any, any> }): TableMetaData[] {
+    return Object.keys(adapters).map<TableMetaData>(key => {
         const adapter = adapters[key];
         return getMetaData(adapter);
     });

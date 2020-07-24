@@ -405,6 +405,18 @@ export abstract class BaseAdapter<M, TSource,
         return this._getSubscriptionConfig(this.updatedEvent, this.config.updated);
     }
 
+    get nameQueryOne() {
+        return getFieldName(CONS.getOneField, this.config.getOne);
+    }
+
+    get nameQueryList() {
+        return getFieldName(CONS.getListField, this.config.getList);
+    }
+
+    get nameQueryAggregate() {
+        return getFieldName(CONS.getAggregateField, this.config.getAggregate);
+    }
+
     /**
      * 所有query的字段
      * @returns {{} | {[p: string]: {resolve(): {}, description: string, type: GraphQLObjectType<TSource, TContext>}}}
@@ -416,11 +428,11 @@ export abstract class BaseAdapter<M, TSource,
         ((memo, key) => {
             if (!filterAction(includeQuery, excludeQuery, key)) return memo;
             if (key === Query.ONE) {
-                memo[getFieldName(CONS.getOneField, this.config.getOne)] = this.getOne;
+                memo[this.nameQueryOne] = this.getOne;
             } else if (key === Query.LIST) {
-                memo[getFieldName(CONS.getListField, this.config.getList)] = this.getList;
+                memo[this.nameQueryList] = this.getList;
             } else if (key === Query.AGGREGATE) {
-                memo[getFieldName(CONS.getAggregateField, this.config.getAggregate)] = this.getAggregate;
+                memo[this.nameQueryAggregate] = this.getAggregate;
             }
             return memo;
         }, {});
@@ -441,6 +453,18 @@ export abstract class BaseAdapter<M, TSource,
         };
     }
 
+    get nameMutationCreate() {
+        return getFieldName("create", this.config.create);
+    }
+
+    get nameMutationRemove() {
+        return getFieldName("remove", this.config.remove);
+    }
+
+    get nameMutationUpdate() {
+        return getFieldName("update", this.config.update);
+    }
+
     /**
      * 所有mutation的字段
      * @returns {{} | {[p: string]: {resolve(): {}, description: string, type: GraphQLObjectType<TSource, TContext>}}}
@@ -452,11 +476,11 @@ export abstract class BaseAdapter<M, TSource,
         ((memo, key) => {
             if (!filterAction(includeMutation, excludeMutation, key)) return memo;
             if (key === Mutation.CREATE) {
-                memo[getFieldName("create", this.config.create)] = this.create;
+                memo[this.nameMutationCreate] = this.create;
             } else if (key === Mutation.REMOVE && this.primaryKeyName) {
-                memo[getFieldName("remove", this.config.remove)] = this.remove;
+                memo[this.nameMutationRemove] = this.remove;
             } else if (key === Mutation.UPDATE && this.primaryKeyName) {
-                memo[getFieldName("update", this.config.update)] = this.update;
+                memo[this.nameMutationUpdate] = this.update;
             }
             return memo;
         }, {});
