@@ -5,12 +5,16 @@ import {
     GraphQLFieldResolver,
     GraphQLFieldConfigMap,
     GraphQLFieldConfigArgumentMap,
-    Thunk, GraphQLInputObjectTypeConfig, GraphQLOutputType, FieldDefinitionNode, GraphQLObjectTypeConfig
+    Thunk,
+    GraphQLInputObjectTypeConfig,
+    GraphQLOutputType,
+    FieldDefinitionNode,
+    GraphQLObjectTypeConfig,
+    GraphQLInputFieldConfigMap,
 } from "graphql";
 
 import {PubSub} from "graphql-subscriptions";
 import Maybe from "graphql/tsutils/Maybe";
-import {GraphQLInputFieldConfigMap} from "graphql/type/definition";
 
 
 /**
@@ -81,8 +85,6 @@ export type BaseFieldConfig<M, TSource, TArgs, TContext> =
     BaseHook<M, TSource, TArgs, TContext> &
     { name?: string }
 
-export type PageType<M> = { count: number; rows: M[] }
-
 export interface BaseQuery<M, TSource, TArgs, TContext> {
     getOne?: BaseFieldConfig<M, TSource, TArgs, TContext>;
     getList?: BaseFieldConfig<M[], TSource, TArgs, TContext>;
@@ -93,21 +95,9 @@ export interface BaseMutation<M, TSource, TArgs, TContext> {
     create?: BaseFieldConfig<M, TSource, TArgs, TContext>;
     update?: BaseFieldConfig<M, TSource, TArgs, TContext>;
     remove?: BaseFieldConfig<boolean, TSource, TArgs, TContext>;
-
 }
 
-export type FilterFn<M, TArgs, TContext> = (tag: string, rootValue: M, args: TArgs, context?: TContext, info?: any) => boolean | Promise<boolean>
-export type BaseSubscriptionConfig<M, TSource, TArgs, TContext> = GraphQLFieldConfigOptions<TSource, TContext, TArgs>
-    & {
-    filter?: FilterFn<M, TArgs, TContext>;
-    name?: string;
-}
-
-export interface BaseSubscription<M, TSource, TArgs, TContext> {
-    created?: BaseSubscriptionConfig<M, TSource, TArgs, TContext>;
-    updated?: BaseSubscriptionConfig<M, TSource, TArgs, TContext>;
-    removed?: BaseSubscriptionConfig<M, TSource, TArgs, TContext>;
-}
+export type FilterFn<M, TArgs, TContext> = (rootValue: M, args: TArgs, context?: TContext, info?: any) => boolean | Promise<boolean>
 
 export interface BaseTypeConfig<TSource, TContext> {
     /**
@@ -194,7 +184,6 @@ export type BaseConfig<M, TSource, TArgs, TContext> =
     CommonConfig &
     BaseQuery<M, TSource, TArgs, TContext> &
     BaseMutation<M, TSource, TArgs, TContext> &
-    BaseSubscription<M, TSource, TArgs, TContext> &
     BaseInputTypeConfig &
     BaseTypeConfig<TSource, TContext> &
     BaseFieldsConfig<TSource, TContext> &
@@ -224,22 +213,21 @@ export type BaseConfig<M, TSource, TArgs, TContext> =
          * 映射模型字段
          * @param fields
          */
-        mapperModelFields?: (fields: GraphQLFieldConfigMap<any, any>) => GraphQLFieldConfigMap<any, any>;
+        handleModelFields?: (fields: GraphQLFieldConfigMap<any, any>) => GraphQLFieldConfigMap<any, any>;
         /**
          * 映射创建参数字段
          * @param fields
          */
-        mapperCreateTypeFields?: (fields: GraphQLInputFieldConfigMap) => GraphQLInputFieldConfigMap;
+        handleCreateTypeFields?: (fields: GraphQLInputFieldConfigMap) => GraphQLInputFieldConfigMap;
         /**
          * 映射更新参数字段
          * @param fields
          */
-        mapperUpdateTypeFields?: (fields: GraphQLInputFieldConfigMap) => GraphQLInputFieldConfigMap;
+        handleUpdateTypeFields?: (fields: GraphQLInputFieldConfigMap) => GraphQLInputFieldConfigMap;
     }
 
 export interface BaseAdapterInterface<M, TSource, TContext extends Record<string, any>, TArgs> extends BaseQuery<M, TSource, TArgs, TContext>,
     BaseMutation<M, TSource, TArgs, TContext>,
-    BaseSubscription<M, TSource, TArgs, TContext>,
     BaseType<TSource, TContext>,
     BaseInputType,
     BaseFieldsConfig<TSource, TContext> {
@@ -251,8 +239,4 @@ export interface BaseAdapterInterface<M, TSource, TContext extends Record<string
      * model 的所有mutation
      */
     mutationFields: GraphQLFieldConfigMap<TSource, TContext>;
-    /**
-     * model 的所有subscription
-     */
-    subscriptionFields: GraphQLFieldConfigMap<TSource, TContext>;
 }

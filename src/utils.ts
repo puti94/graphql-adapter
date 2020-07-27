@@ -37,9 +37,9 @@ export type GenerateAdapterConfig<T> =
     SequelizeAdapterConfig<any, any, any> &
     Partial<GraphQLSchemaConfig> &
     {
-        customQuery?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-        customMutation?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
-        customSubscription?: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+        customQuery?: ((adapters: AdapterMaps<T>, options: GenerateAdapterConfig<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+        customMutation?: ((adapters: AdapterMaps<T>, options: GenerateAdapterConfig<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
+        customSubscription?: ((adapters: AdapterMaps<T>, options: GenerateAdapterConfig<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>;
         configMap?: { [key in keyof T]?: SequelizeAdapterConfig<any, any, any> };
         /**
          * 是否添加Mutation
@@ -65,40 +65,57 @@ export type GenerateAdapterConfig<T> =
 
 export type AdapterMaps<T> = { [key in keyof T]?: SequelizeAdapter<any, any, any> }
 
-function thunkGet<T>(value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>, adapters: AdapterMaps<T>): GraphQLFieldConfigMap<any, any> {
-    if (_.isFunction(value)) return value(adapters);
+function thunkGet<T>(value: ((adapters: AdapterMaps<T>, options: GenerateAdapterConfig<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>, adapters: AdapterMaps<T>, options: GenerateAdapterConfig<T>): GraphQLFieldConfigMap<any, any> {
+    if (_.isFunction(value)) return value(adapters, options);
     return value;
 }
 
-function generateType<T>(include: boolean, omitFields: string[], value: ((adapters: AdapterMaps<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>,
-                         adapters: AdapterMaps<T>, fields: GraphQLFieldConfigMap<any, any>, config: GraphQLObjectTypeConfig<any, any>): GraphQLObjectType | null {
-    if (!include && (!_.isFunction(value) && _.isEmpty(value)) || (_.isFunction(value) && _.isEmpty(thunkGet(value, adapters)))) return null;
+function generateType<T>(include: boolean, omitFields: string[], value: ((adapters: AdapterMaps<T>, options: GenerateAdapterConfig<T>) => GraphQLFieldConfigMap<any, any>) | GraphQLFieldConfigMap<any, any>,
+                         adapters: AdapterMaps<T>, fields: GraphQLFieldConfigMap<any, any>, config: GraphQLObjectTypeConfig<any, any>, options: GenerateAdapterConfig<T>): GraphQLObjectType | null {
+    if (!include && (!_.isFunction(value) && _.isEmpty(value)) || (_.isFunction(value) && _.isEmpty(thunkGet(value, adapters, options)))) return null;
     return new GraphQLObjectType({
         ...config,
         fields: () => _.omit({
             ...(include ? fields : {}),
-            ...thunkGet(value, adapters)
+            ...thunkGet(value, adapters, options)
         }, omitFields)
     });
 }
 
+const defaultOptions: GenerateAdapterConfig<any> = {
+    customQuery: {},
+    customMutation: {},
+    customSubscription: {},
+    omitQueryFields: [],
+    omitMutationFields: [],
+    omitSubscriptionFields: [],
+    includeMutation: true,
+    includeSubscription: true,
+    configMap: {},
+};
+
+
 /**
- *
+ * 生成schema
  * @param models
  * @param options
  * @returns {GraphQLSchema}
  */
 function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, options: GenerateAdapterConfig<T> = {}): GraphQLSchema {
+    options = {
+        ...defaultOptions,
+        ...options
+    };
     const {
-        customQuery = {},
-        customMutation = {},
-        customSubscription = {},
-        omitQueryFields = [],
-        omitMutationFields = [],
-        omitSubscriptionFields = [],
-        includeMutation = true,
-        includeSubscription = true,
-        configMap = {},
+        customQuery,
+        customMutation,
+        customSubscription,
+        omitQueryFields,
+        omitMutationFields,
+        omitSubscriptionFields,
+        includeMutation,
+        includeSubscription,
+        configMap,
         ...commonModelConfig
     } = options;
     // @ts-ignore
@@ -125,7 +142,7 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
             fields: () => {
                 const fields = {
                     ...query,
-                    ...thunkGet(customQuery, adapters)
+                    ...thunkGet(customQuery, adapters, options)
                 };
                 return _.omit(fields, omitQueryFields);
             }
@@ -134,12 +151,12 @@ function generateSchema<T extends { [key: string]: ModelCtor<any> }>(models: T, 
             name: "Mutation",
             description: "Base Mutation",
             fields: {}
-        }),
+        }, options),
         subscription: generateType(includeSubscription, omitSubscriptionFields, customSubscription, adapters, subscription, {
             name: "Subscription",
             description: "Base Subscription",
             fields: {}
-        }),
+        }, options),
         ...(_.pick(commonModelConfig, ["description", "query", "mutation", "subscription", "types", "directives", "extensions", "astNode", "extensionASTNodes", "assumeValid"]))
     });
 }

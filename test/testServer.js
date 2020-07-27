@@ -8,64 +8,59 @@ const {GraphQLBoolean, GraphQLString, GraphQLNonNull} = require("graphql");
 const app = express();
 const httpServer = http.createServer(app);
 sequelize.sync();
-
 mergeConstant({aggregationName: "_fn"});
-
-const server = new ApolloServer({
-  schema: generateSchema(models, {
-    pubSub: new PubSub(),
-    withMetadata: true,
-    handlerFindOptions: ((action, options, fields) => {
-      console.log("哈哈", action, options, fields);
-      return {
-        ...options,
-      };
-    }),
-    filterSubscription: (response) => {
-      console.log("Subscription", response);
+const schema = generateSchema(models, {
+  pubSub: new PubSub(),
+  handlerFindOptions: ((action, options, fields) => {
+    console.log("哈哈", action, options, fields);
+    return {
+      ...options,
+    };
+  }),
+  created: {
+    filter: (response, args) => {
+      console.log("created.filter", response, args);
       return true;
-    },
-    created: {
-      filter: (response) => {
-        console.log("created.filter", response);
+    }
+  },
+  customQuery: metadataFields,
+  customMutation: {
+    openServer: {
+      type: GraphQLBoolean,
+      args: {
+        path: {
+          type: GraphQLNonNull(GraphQLString),
+          description: "路径"
+        },
+      },
+      resolve: (source, args) => {
+        const server = new ApolloServer({
+          schema: generateSchema(models, {pubSub: new PubSub()}),
+          subscriptions: args.path
+        });
+        server.applyMiddleware({app, path: args.path});
+        server.installSubscriptionHandlers(httpServer);
         return true;
       }
-    },
-    customQuery: metadataFields,
-    customMutation: {
-      openServer: {
-        type: GraphQLBoolean,
-        args: {
-          path: {
-            type: GraphQLNonNull(GraphQLString),
-            description: "路径"
-          },
-        },
-        resolve: (source, args) => {
-          const server = new ApolloServer({
-            schema: generateSchema(models, {pubSub: new PubSub()}),
-            subscriptions: args.path
-          });
-          server.applyMiddleware({app, path: args.path});
-          server.installSubscriptionHandlers(httpServer);
+    }
+  },
+  configMap: {
+    User: {
+      created: {
+        filter: (response) => {
+          console.log("User.created.filter", response);
           return true;
         }
-      }
-    },
-    configMap: {
-      User: {
-        created: {
-          filter: (response) => {
-            console.log("User.created.filter", response);
-            return true;
-          }
-        },
-        mapperModelFields(fields) {
-          return _.omit(fields, "id");
-        }
+      },
+      handleModelFields(fields) {
+        fields.name.resolve = (source => `${source.name}.会更好`);
+        return _.omit(fields, "id");
       }
     }
-  }),
+  }
+});
+const server = new ApolloServer({
+  schema: schema,
   tracing: true
 });
 

@@ -105,6 +105,16 @@ const OrderSortEnum = new GraphQLEnumType({
     }
 });
 
+const SubscriptionTriggerEnum = new GraphQLEnumType({
+    name: "TriggerEnum",
+    description: "触发类型",
+    values: {
+        Created: {value: "Created"},
+        Updated: {value: "Updated"},
+        Removed: {value: "Removed"},
+    }
+});
+
 
 export {
     scope,
@@ -116,5 +126,6 @@ export {
     OrderSortEnum,
     aggregateFunction,
     includeFields,
-    subQuery
+    subQuery,
+    SubscriptionTriggerEnum
 };

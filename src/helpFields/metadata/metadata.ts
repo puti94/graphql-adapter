@@ -16,6 +16,7 @@ import {SequelizeAdapter} from "../../SequelizeAdapter";
 import {DateType, JSONType} from "../../sequelizeImpl/types";
 import CONS from "../../constant";
 import {ModelValidateOptions} from "sequelize/types/lib/model";
+import {GenerateAdapterConfig} from "../../utils";
 
 
 type FieldMetaData = {
@@ -177,7 +178,7 @@ function getTypeFieldsMetadata(type: GraphQLObjectType | GraphQLInputObjectType,
 }
 
 
-export function getMetaData(adapter: SequelizeAdapter<any, any, any>): TableMetaData {
+export function getMetaData(adapter: SequelizeAdapter<any, any, any>, options: GenerateAdapterConfig<any>): TableMetaData {
     const mutationFields = (adapter.mutationFields[adapter.name]?.type as GraphQLObjectType)?.getFields() || {};
     return {
         name: adapter.name,
@@ -185,16 +186,16 @@ export function getMetaData(adapter: SequelizeAdapter<any, any, any>): TableMeta
         type: adapter.modelType.toString(),
         title: adapter.description,
         description: adapter.description,
-        createAble: !!mutationFields[adapter.nameMutationCreate],
-        editable: !!mutationFields[adapter.nameMutationUpdate],
-        removeAble: !!mutationFields[adapter.nameMutationRemove],
+        createAble: !!options.includeMutation && !!mutationFields[adapter.nameMutationCreate],
+        editable: !!options.includeMutation && !!mutationFields[adapter.nameMutationUpdate],
+        removeAble: !!options.includeMutation && !!mutationFields[adapter.nameMutationRemove],
         fields: getTypeFieldsMetadata(adapter.modelType, adapter),
     };
 }
 
-export function getMetaDataList(adapters: { [key: string]: SequelizeAdapter<any, any, any> }): TableMetaData[] {
+export function getMetaDataList(adapters: { [key: string]: SequelizeAdapter<any, any, any> }, options: GenerateAdapterConfig<any>): TableMetaData[] {
     return Object.keys(adapters).map<TableMetaData>(key => {
         const adapter = adapters[key];
-        return getMetaData(adapter);
+        return getMetaData(adapter, options);
     });
 }

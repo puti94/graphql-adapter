@@ -13,7 +13,9 @@ import {
     GraphQLObjectTypeConfig,
     GraphQLInputObjectTypeConfig,
     GraphQLResolveInfo,
-    GraphQLEnumType, GraphQLEnumTypeConfig, GraphQLEnumValueConfigMap,
+    GraphQLEnumType,
+    GraphQLEnumTypeConfig,
+    GraphQLEnumValueConfigMap,
 } from "graphql";
 import CONS from "./constant";
 import _ from "lodash";
@@ -21,19 +23,17 @@ import {map2NullableType} from "./utils";
 import {
     FilterActions,
     BaseFieldConfig,
-    BaseSubscriptionConfig,
     BaseConfig,
     BaseAdapterInterface,
     BaseHook,
     Query,
     Mutation,
-    Subscription,
     MaybePromise, Resolver
 } from "./BaseAdapterType";
 
 export * from "./BaseAdapterType";
 import {withFilter} from "graphql-subscriptions";
-import {BasicType, OrderSortEnum} from "./sequelizeImpl";
+import {BasicType, OrderSortEnum, SubscriptionTriggerEnum} from "./sequelizeImpl";
 
 
 /**
@@ -101,6 +101,7 @@ export abstract class BaseAdapter<M, TSource,
     abstract updateFields?: GraphQLFieldConfigArgumentMap;
     abstract inputArgs: GraphQLFieldConfigArgumentMap;
     abstract inputListArgs: GraphQLFieldConfigArgumentMap;
+    abstract subscriptionFilterArgs: GraphQLFieldConfigArgumentMap;
     abstract aggregateArgs: GraphQLFieldConfigArgumentMap;
     primaryKey: GraphQLFieldConfigArgumentMap;
     primaryKeyName?: string;
@@ -137,12 +138,12 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLObjectType}
      */
     get modelType(): GraphQLObjectType {
-        const {mapperModelFields = v => v} = this.config;
+        const {handleModelFields = v => v} = this.config;
         return getCacheGraphqlType<GraphQLObjectTypeConfig<any, any>>({
             name: this.upperName,
             description: this.description,
             ...(this.config.modelTypeConfig || {}),
-            fields: () => mapperModelFields({
+            fields: () => handleModelFields({
                 ...this.modelFields,
                 ...this.customFields,
                 ...this.associationsFields,
@@ -212,11 +213,11 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLInputObjectType}
      */
     get updateType(): GraphQLInputObjectType {
-        const {mapperUpdateTypeFields = v => v} = this.config;
+        const {handleUpdateTypeFields = v => v} = this.config;
         return getCacheGraphqlType({
             name: `${this.upperName}UpdateInput`,
             ...(this.config.updateTypeConfig || {}),
-            fields: () => mapperUpdateTypeFields({
+            fields: () => handleUpdateTypeFields({
                 ...map2NullableType(this.updateFields),
                 ...this.associationsUpdateFields,
                 ...thunkGet(this.config.updateTypeConfig?.fields || {}),
@@ -231,11 +232,11 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {GraphQLInputObjectType}
      */
     get createType(): GraphQLInputObjectType {
-        const {mapperCreateTypeFields = v => v} = this.config;
+        const {handleCreateTypeFields = v => v} = this.config;
         return getCacheGraphqlType({
             name: `${this.upperName}CreateInput`,
             ...this.config.createTypeConfig,
-            fields: () => mapperCreateTypeFields({
+            fields: () => handleCreateTypeFields({
                 ...this.createFields,
                 ...this.associationsCreateFields,
                 ...thunkGet(this.config.createTypeConfig?.fields || {}),
@@ -256,26 +257,6 @@ export abstract class BaseAdapter<M, TSource,
             resolve: this._addHooks({before, after})(resolve || defaultConfig.resolve)
         };
     }
-
-    private _getSubscriptionConfig<TResponse>(eventName: string, config: BaseSubscriptionConfig<TResponse, TSource, TArgs, TContext> = {}) {
-        const {filter = () => true, ...otherConfig} = config;
-        const {pubSub, filterSubscription} = this.config;
-        return {
-            type: this.modelType,
-            description: `subscription ${this.description}${eventName}`,
-            args: this.inputArgs,
-            ...otherConfig,
-            subscribe: withFilter(() => pubSub?.asyncIterator(`${this.eventName}.${eventName}`), async (...args) => {
-                //有设置通用拦截器先执行通用拦截
-                if (_.isFunction(filterSubscription)) {
-                    const result = await filterSubscription(...args);
-                    if (result === false) return false;
-                }
-                return filter(...args);
-            })
-        };
-    }
-
 
     /**
      * 查询单个数据
@@ -381,29 +362,6 @@ export abstract class BaseAdapter<M, TSource,
         return _.upperFirst(this.name);
     }
 
-    /**
-     * 新建subscription
-     * @returns {Pick<GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string} extends "filter" ? never : keyof GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string}> & {args: GraphQLFieldConfigArgumentMap; subscribe: ResolverFn; type: GraphQLObjectType}}
-     */
-    get created() {
-        return this._getSubscriptionConfig(this.createdEvent, this.config.created);
-    }
-
-    /**
-     * 删除subscription
-     * @returns {Pick<GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string} extends "filter" ? never : keyof GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string}> & {args: GraphQLFieldConfigArgumentMap; subscribe: ResolverFn; type: GraphQLObjectType}}
-     */
-    get removed() {
-        return this._getSubscriptionConfig(this.removedEvent, this.config.removed);
-    }
-
-    /**
-     * 更新subscription
-     * @returns {Pick<GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string}, keyof GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string} extends "filter" ? never : keyof GraphQLFieldConfig<TSource, TContext> & {filter?: FilterFn<M, TArgs, TContext>; name?: string}> & {args: GraphQLFieldConfigArgumentMap; subscribe: ResolverFn; type: GraphQLObjectType}}
-     */
-    get updated() {
-        return this._getSubscriptionConfig(this.updatedEvent, this.config.updated);
-    }
 
     get nameQueryOne() {
         return getFieldName(CONS.getOneField, this.config.getOne);
@@ -510,7 +468,7 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {string}
      */
     get createdEvent() {
-        return getFieldName(`${this.eventName}.Created`, this.config.created);
+        return `${this.eventName}.Created`;
     }
 
     /**
@@ -518,7 +476,7 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {string}
      */
     get removedEvent() {
-        return getFieldName(`${this.eventName}.Removed`, this.config.removed);
+        return `${this.eventName}.Removed`;
     }
 
     /**
@@ -526,46 +484,32 @@ export abstract class BaseAdapter<M, TSource,
      * @returns {string}
      */
     get updatedEvent() {
-        return getFieldName(`${this.eventName}.Updated`, this.config.updated);
+        return `${this.eventName}.Updated`;
     }
 
     /**
      * 所有监听的字段
-     * @returns {{} | {[p: string]: {subscribe: (rootValue?: any, args?: any, context?: any, info?: any) => AsyncIterator<any>, description: string, type: GraphQLObjectType<TSource, TContext>}}}
+     * @returns {{} | {[p: string]: {args: {[p: string]: GraphQLArgumentConfig, triggerType: {description: string, type: GraphQLNonNull<GraphQLNullableType>}}, subscribe: (rootValue?: any, args?: any, context?: any, info?: any) => AsyncIterator<any>, description: string, type: GraphQLObjectType<any, any>}}}
      */
     get subscriptionFields(): GraphQLFieldConfigMap<TSource, TContext> {
-        const {includeSubscription = true, excludeSubscription, pubSub, filterSubscription, subscriptionFields} = this.config;
+        const defaultFilter = (source: any, args: object) => _.isMatch(source[this.name] as object, _.omit(args, "triggerType"));
+        const {
+            includeSubscription = true, pubSub, filterSubscription = defaultFilter
+        } = this.config;
         if (_.isUndefined(pubSub) || !includeSubscription) return {};
-        const fields = [Subscription.CREATED, Subscription.REMOVED, Subscription.UPDATED].reduce<GraphQLFieldConfigMap<TSource, TContext>>
-        ((memo, key) => {
-            if (!filterAction(includeSubscription, excludeSubscription, key)) return memo;
-            if (key === Subscription.CREATED) {
-                memo["Created"] = this.created;
-            } else if (key === Subscription.UPDATED) {
-                memo["Updated"] = this.updated;
-            } else if (key === Subscription.REMOVED) {
-                memo["Removed"] = this.removed;
-            }
-            return memo;
-        }, {});
         return {
             [this.name]: {
                 description: this.description,
-                subscribe: withFilter(() => pubSub?.asyncIterator([this.createdEvent, this.updatedEvent, this.removedEvent]), async (...args) => {
-                    //有设置通用拦截器先执行通用拦截
-                    if (_.isFunction(filterSubscription)) {
-                        const result = await filterSubscription(...args);
-                        if (result === false) return false;
+                args: {
+                    ...this.subscriptionFilterArgs,
+                    triggerType: {
+                        description: "触发类型",
+                        type: GraphQLNonNull(SubscriptionTriggerEnum)
                     }
-                    return true;
-                }),
-                type: new GraphQLObjectType({
-                    name: `${this.upperName}Event`,
-                    fields: {
-                        ...fields,
-                        ...thunkGet(subscriptionFields || {})
-                    }
-                })
+                },
+                subscribe: withFilter((source, {triggerType}) => pubSub?.asyncIterator(`${this.eventName}.${triggerType}`),
+                    filterSubscription),
+                type: this.modelType
             }
         };
     }

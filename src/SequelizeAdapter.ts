@@ -42,6 +42,10 @@ export type SequelizeAdapterConfig<M extends Model, TSource, TContext> =
      */
     defaultLimit?: number;
     /**
+     * 主键类型转为GraphqlId类型
+     */
+    primaryKeyToIdType?: boolean;
+    /**
      * 处理FindOptions的钩子
      * @param action
      * @param options
@@ -61,10 +65,10 @@ export type SequelizeAdapterConfig<M extends Model, TSource, TContext> =
     handlerAggregateOptions?: (action: string, options: AggregateOptions<any>, args: SequelizeArgs, context: TContext, info: GraphQLResolveInfo) => AggregateOptions<any>;
 }
 
-function getPrimaryKey<M extends Model>(model: ModelCtor<M>): GraphQLFieldConfigArgumentMap {
+function getPrimaryKey<M extends Model>(model: ModelCtor<M>, config: SequelizeAdapterConfig<M, any, any>): GraphQLFieldConfigArgumentMap {
     if (!model.primaryKeyAttribute) return {};
     return {
-        [model.primaryKeyAttribute]: attributeFields(model)[model.primaryKeyAttribute]
+        [model.primaryKeyAttribute]: attributeFields(model, {primaryKeyToIdType: config.primaryKeyToIdType})[model.primaryKeyAttribute]
     };
 }
 
@@ -102,6 +106,7 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     createFields: GraphQLFieldConfigArgumentMap;
     updateFields: GraphQLFieldConfigArgumentMap;
     inputArgs: GraphQLFieldConfigArgumentMap;
+    subscriptionFilterArgs: GraphQLFieldConfigArgumentMap;
     inputListArgs: GraphQLFieldConfigArgumentMap;
     aggregateArgs: GraphQLFieldConfigArgumentMap;
     modelFields: GraphQLFieldConfigMap<TSource, TContext>;
@@ -110,18 +115,26 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     constructor(model: ModelCtor<M>, config: SequelizeAdapterConfig<M, TSource, TContext> = {}) {
         super({
             name: getName(model),
-            primaryKey: getPrimaryKey(model),
+            primaryKey: getPrimaryKey(model, config),
             description: model.options?.comment,
             ...config
         });
         this.model = model;
-        const createFields = attributeFields(model, {filterAutomatic: true, isInput: true});
+        const createFields = attributeFields(model, {
+            filterAutomatic: true,
+            isInput: true,
+            primaryKeyToIdType: config.primaryKeyToIdType
+        });
         const updateFields = (function () {
             const fields = {...createFields};
             delete fields[model.primaryKeyAttribute];
             return fields;
         })();
-        this.modelFields = attributeFields(model);
+        this.modelFields = attributeFields(model, {primaryKeyToIdType: config.primaryKeyToIdType});
+        this.subscriptionFilterArgs = attributeFields(model, {
+            allowNull: true,
+            primaryKeyToIdType: config.primaryKeyToIdType
+        });
         this.createFields = createFields;
         this.updateFields = updateFields;
         this.inputArgs = {
@@ -196,17 +209,17 @@ export class SequelizeAdapter<M extends Model, TSource, TContext> extends BaseAd
     private _initialHooks() {
         this.model.afterCreate(this.createdEvent, (attributes: M) => {
             this.config.pubSub?.publish(this.createdEvent, {
-                [this.name]: {Created: attributes.get()}
+                [this.name]: attributes.get()
             });
         });
         this.model.afterUpdate(this.updatedEvent, (attributes: M) => {
             this.config.pubSub?.publish(this.updatedEvent, {
-                [this.name]: {Updated: attributes.get()}
+                [this.name]: attributes.get()
             });
         });
         this.model.afterDestroy(this.removedEvent, (attributes: M) => {
             this.config.pubSub?.publish(this.removedEvent, {
-                [this.name]: {Removed: attributes.get()}
+                [this.name]: attributes.get()
             });
         });
     }

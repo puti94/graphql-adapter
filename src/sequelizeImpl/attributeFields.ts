@@ -1,5 +1,5 @@
 import * as typeMapper from "./typeMapper";
-import {GraphQLEnumType, GraphQLNonNull} from "graphql";
+import {GraphQLEnumType, GraphQLNonNull, GraphQLID} from "graphql";
 import {ModelType} from "sequelize";
 import _ from "lodash";
 
@@ -11,6 +11,7 @@ type FieldsOptions = {
     allowNull?: boolean;
     only?: FunctionGet;
     commentToDescription?: boolean;
+    primaryKeyToIdType?: boolean;
     filterAutomatic?: boolean;
     isInput?: boolean;
     automaticKey?: FunctionGet;
@@ -19,6 +20,7 @@ const cacheMap: { [key: string]: any } = {};
 export default function (Model: ModelType, options: FieldsOptions = {}) {
     options = {
         commentToDescription: true,
+        primaryKeyToIdType: true,
         ...options
     };
     const cache = options.cache || cacheMap;
@@ -56,7 +58,7 @@ export default function (Model: ModelType, options: FieldsOptions = {}) {
 
 
         memo[key] = {
-            type: typeMapper.toGraphQL(attribute.type)
+            type: (options.primaryKeyToIdType && attribute.primaryKey) ? GraphQLID : typeMapper.toGraphQL(attribute.type)
         };
 
         if (memo[key].type instanceof GraphQLEnumType) {

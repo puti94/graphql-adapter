@@ -4,7 +4,8 @@ const {
   GraphQLString,
   GraphQLNonNull,
   GraphQLInt,
-  GraphQLBoolean
+  GraphQLBoolean,
+  GraphQLID
 } = require("graphql");
 const {DateType, JSONType} = require("../../dist/sequelizeImpl/types");
 const {Sequelize, DataTypes} = require("sequelize");
@@ -37,7 +38,7 @@ const Account = new Sequelize({dialect: "mysql"}).define("Account", {
 
 describe("#attributeFields", () => {
   const expected = {
-    uuid: {type: new GraphQLNonNull(GraphQLString), description: "账户id"},
+    uuid: {type: GraphQLNonNull(GraphQLID), description: "账户id"},
     name: {
       type: GraphQLString
     },
@@ -54,13 +55,13 @@ describe("#attributeFields", () => {
       type: GraphQLString
     },
     mobile: {
-      type: new GraphQLNonNull(GraphQLString)
+      type: GraphQLNonNull(GraphQLString)
     },
     createdAt: {
-      type: new GraphQLNonNull(DateType)
+      type: GraphQLNonNull(DateType)
     },
     updatedAt: {
-      type: new GraphQLNonNull(DateType)
+      type: GraphQLNonNull(DateType)
     }
   };
   
@@ -76,7 +77,10 @@ describe("#attributeFields", () => {
   
   it("options automaticKey", function () {
     const {createdAt, updatedAt, mobile, ...others} = expected;
-    assert.deepStrictEqual(attributeFields(Account, {filterAutomatic: true, automaticKey: ["mobile"]}), others);
+    assert.deepStrictEqual(attributeFields(Account, {
+      filterAutomatic: true,
+      automaticKey: ["mobile"]
+    }), others);
   });
   
   it("options automaticKeyFun", function () {
@@ -91,14 +95,14 @@ describe("#attributeFields", () => {
     const {uuid, ...others} = expected;
     assert.deepStrictEqual(attributeFields(Account, {isInput: true}), {
       ...others,
-      uuid: {type: GraphQLString, description: "账户id"},
+      uuid: {type: GraphQLID, description: "账户id"},
     });
   });
   
   it("options commentToDescription", function () {
     assert.deepStrictEqual(attributeFields(Account, {commentToDescription: false}), {
       ...expected,
-      uuid: {type: new GraphQLNonNull(GraphQLString)},
+      uuid: {type: GraphQLNonNull(GraphQLID)},
     });
   });
   
@@ -125,7 +129,9 @@ describe("#attributeFields", () => {
     });
     it("function", function () {
       const {uuid, balance, ...others} = expected;
-      assert.deepStrictEqual(attributeFields(Account, {only: key => ["uuid", "balance"].includes(key)}), {
+      assert.deepStrictEqual(attributeFields(Account, {
+        only: key => ["uuid", "balance"].includes(key)
+      }), {
         uuid, balance
       });
     });
